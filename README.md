@@ -1,6 +1,11 @@
-# PythonArduPilot
-ArduPilot Python code
+# ARLISS
+ArduPilot Python code <br />
 
 http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/
 
-ARLISS CODE HERE
+<br />
+## Files:
+
+### main.cpp (main):
+
+-- [main.cpp](ARLISS/main.cpp) --
