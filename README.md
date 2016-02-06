@@ -4,8 +4,8 @@ ArduPilot Python code <br />
 http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/
 
 <br />
-ARLISS: only offical code here <br />
-TestCode: all other code here <br />
+<b>ARLISS:</b> only offical code here <br />
+<b>TestCode:</b> all other code here <br />
 	- Other <br />
 	- RCdrone_joe: includes drop code <br />
 
@@ -28,8 +28,7 @@ Plane Parameters: http://plane.ardupilot.com/wiki/arduplane-parameters/ <br />
 MAVLink Common Message Set: https://pixhawk.ethz.ch/mavlink/ <br />
 MAVLink Mission Command Messages: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/ <br />
 <br />
-GPS math stuff: <br />
-- Offset by distance: <br />
+- GPS math stuff: Offset by distance: <br />
  - http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
  - http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
 <br />
