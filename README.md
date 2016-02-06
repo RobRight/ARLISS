@@ -33,6 +33,6 @@ GPS math stuff: <br />
  - http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
  - http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
 <br />
-SITL: <br />
-SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
-SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
+- SITL: <br />
+ - SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
+ - SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
