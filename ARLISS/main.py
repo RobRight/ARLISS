@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # ARLISS QUAD PYTHON CODE
 # Note:
 #	- way to arm/disarm quad
@@ -9,14 +11,14 @@
 
 #import sys
 #import math
-#import clr
+import clr
 #import time
 clr.AddReference("MissionPlanner")
 import MissionPlanner
-#clr.AddReference("MissionPlanner.Utilities")
-#from MissionPlanner.Utilities import Locationwp
-#clr.AddReference("MAVLink") # includes the Utilities class
-#import MAVLink
+clr.AddReference("MissionPlanner.Utilities")
+from MissionPlanner.Utilities import Locationwp
+clr.AddReference("MAVLink") # includes the Utilities class
+import MAVLink
 
 # Information about ArduPilot python commands:
 # --------------------------------------------------------------------------------------
@@ -39,86 +41,24 @@ import MissionPlanner
 #
 # RC Input and Output values - http://dev.ardupilot.com/wiki/learning-ardupilot-rc-input-output/
 
-class Mission:
-	Quad quad()
-
-	start_pos = [0.0, 0.0]
-	ejected_pos = [0.0, 0.0]
-	target_pos = [31.002, -110.010]
-	
-	start_alt = 0.0
-	max_alt = 0.0
-	free_fall_end_alt = 4000.0
-	landing_start_alt = 400.0
-	landing_start_dist = 50.0
-	
-	rocket_launched = False
-	ejected = False
-	
-	flight_mode = 0 # 0:idle, 1:directed_flight, 2:landing
-	
-	def __init__(self):
-		print("mission online")
-	# call at mission start
-	def Mission::start():
-		flight_mode = 0
-		start_alt = quad.sen.current_altitude
-		max_alt = start_alt
-		start_pos = [quad.sen.current_lat, quad.sen.current_lon]
-	# loop for entire mission
-	def Mission::main_run():
-		start()
-		while(!mission_complete):
-			# test until rocket launched
-			while(!rocket_launched):
-				if(quad.sen.current_altitude>start_alt+1000): rocket_launched = True
-			print("rocket launched")
-			
-			# test until rocket ejected
-			while(!ejected):
-				if(quad.sen.current_altitude<max_alt+1000): ejected = True # NOTE: maybe use accelerometer
-			print("quad ejected")
-			ejected_pos = [quad.sen.curren_lat, quad.sen.curren_lon]
-			
-			# wait until below free fall set alt
-			while(quad.sen.current_altitude>free_fall_end_alt): pass
-			flight_mode = 1
-			quad.mov.set_waypoint(target_pos, landing_start_alt+1000)
-			
-			# wait until within landing zone
-			while(quad.sen.current_altitude>landing_start_alt and quad.sen.current_distance>landing_start_dist): pass
-			flight_mode = 2
-			quad.move.start_landing()
-			
-		print("mission complete")
-
-class Quad:
-	Move mov()
-	Sensors sen()
-	
-	error = False # true if there is any unresolved error
-	
-	def __init__(self):
-		Script.ChangeMode()
-		print("quad online")
-	def Quad::directed_flight():
-		Move.set_waypoint(target_pos, alt):
-
 class Move:
 	merror = False # true if there is a move related error
 	# init
 	def __init__(self):
 		print("movement online")
 	# set new waypoint with altitude
-	def Move::set_waypoint(target):
+	def set_waypoint(target):
+		#MAV.doCommand(MAVLink.MAV_CMD.WAYPOINT, 0, 0.000621371, 0, 0, wp_lat, wp_lng, wp_alt) - NODE: do not know if this command works
 		new_wp = MissionPlanner.Utilities.Locationwp()						# create waypoint object
 		MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp,wp_lat)		# set waypoint latitude
 		MissionPlanner.Utilities.Locationwp.lng.SetValue(new_wp,wp_lng)		# set waypoint longitude
 		MissionPlanner.Utilities.Locationwp.alt.SetValue(new_wp,wp_alt)		# set waypoint altitude
 		MAV.setGuidedModeWP(new_wp)											# fly to the new waypoint
 	# call to land
-	def Move::start_landing():
-		pass
+	def start_landing():
+		# http://copter.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/#mav_cmd_nav_land
+		# MAV_CMD_NAV_LAND(0,0,0,0,l,l) - NODE: do not know if this command works
+		Script.ChangeMode('LAND') # set mode to LAND - http://copter.ardupilot.com/wiki/land-mode/
 	
 class Sensors:
 	serror = False # true if there is a sensor related error
@@ -140,7 +80,7 @@ class Sensors:
 	def __init__(self):
 		print("sensors online")
 	# get current flight data
-	def Sensors::get_flight_data():
+	def get_flight_data():
 		global current_time, current_mode, current_distance, current_altitude, \
 			current_groundspeed, current_groundcourse, current_waypoint, \
 			current_wind_direction, current_wind_speed, current_roll, \
@@ -161,7 +101,7 @@ class Sensors:
 		current_lng = cs.lng
 	
 	# output current flight data
-	def Sensors::output():
+	def output():
 		print("sensors current:")
 		print("- time: " + str(current_time))
 		print("- distance: " + str(current_distance))
@@ -171,11 +111,75 @@ class Sensors:
 		print("- waypoint: " + str(current_waypoint))
 		print("- wind_direction: " + str(current_wind_direction))
 		print("- wind_speed: " + str(current_wind_speed))
+
+class Quad:
+	mov = Move()
+	sen = Sensors()
+	
+	error = False # true if there is any unresolved error
+	
+	def __init__(self):
+		print("quad online")
+	def directed_flight():
+		Move.set_waypoint(target_pos, alt)
+
+class Mission:
+	quad = Quad()
+
+	start_pos = [0.0, 0.0]
+	ejected_pos = [0.0, 0.0]
+	target_pos = [31.002, -110.010]
+	
+	start_alt = 0.0
+	max_alt = 0.0
+	free_fall_end_alt = 4000.0
+	landing_start_alt = 400.0
+	landing_start_dist = 50.0
+	
+	rocket_launched = False
+	ejected = False
+	
+	flight_mode = 0 # 0:idle, 1:directed_flight, 2:landing
+	
+	def __init__(self):
+		print("mission online")
+	# call at mission start
+	def start():
+		flight_mode = 0
+		start_alt = quad.sen.current_altitude
+		max_alt = start_alt
+		start_pos = [quad.sen.current_lat, quad.sen.current_lon]
+	# loop for entire mission
+	def main_run():
+		start()
+		while mission_complete == false:
+			# test until rocket launched
+			while rocket_launched == false:
+				if quad.sen.current_altitude>start_alt+1000: rocket_launched = True
+			print("rocket launched")
+			
+			# test until rocket ejected
+			while ejected == false:
+				if quad.sen.current_altitude<max_alt+1000: ejected = True # NOTE: maybe use accelerometer
+			print("quad ejected")
+			ejected_pos = [quad.sen.curren_lat, quad.sen.curren_lon]
+			
+			# wait until below free fall set alt
+			while quad.sen.current_altitude>free_fall_end_alt: pass
+			flight_mode = 1
+			quad.mov.set_waypoint(target_pos, landing_start_alt+1000)
+			
+			# wait until within landing zone
+			while quad.sen.current_altitude>landing_start_alt and quad.sen.current_distance>landing_start_dist: pass
+			flight_mode = 2
+			quad.move.start_landing()
+			
+		print("mission complete")
 		
 # run at script start
 def autostart():
 	print("Hello ARLISS")
-	Mission mission()
-	mission.start()
+	mission = Mission()
+	mission.main_run
 	
-autostart();
+autostart()
