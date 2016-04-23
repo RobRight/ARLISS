@@ -6,43 +6,6 @@
 # - WG 03/03/2016: create file and inital code
 # - WG 04/15/2016: remove quad class. rewrite mission.main_run
 
-# Note:
-#	- all distance in meters (m)
-#	- positions [lat,lon]
-#	- Organized as follows:
-#		-Mission
-#			-Move
-#			-Sensors
-#
-# Add:
-#	- way to arm/disarm quad
-#	- detect launch
-#	- recovery
-#	- waypoint navigation
-#	- landing
-
-# Information about ArduPilot python commands:
-# --------------------------------------------------------------------------------------
-# cs.???? = currentstate, any variable on the status tab in the planner can be used.
-# -some varialbes: roll, pitch, yaw, lat, lng, groundcourse, alt, groundspeed, wp_dist, wpno, mode, armed, battery_remaining
-# -more info here: http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/
-#
-# Script.????
-# Script.Sleep(ms) - sleep time in milliseconds
-# Script.ChangeParam(name,value) - change a parameter value
-# Script.GetParam(name) - read a parameter value
-# -parameter list here: http://plane.ardupilot.com/wiki/arduplane-parameters/
-# Script.ChangeMode(mode) - ex. AUTO, RTL, AUTO, FBWA, FBWB, LOITER
-# -mode list here: http://plane.ardupilot.com/wiki/flight-modes/
-# Script.WaitFor(string,timeout)
-# Script.SendRC(channel,pwm,sendnow) - set servo to pos ition
-#
-# MAV.doCommand(command);  - MAVLink Mission Command Messages
-# -command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/
-#
-# RC Input and Output values - http://dev.ardupilot.com/wiki/learning-ardupilot-rc-input-output/
-# --------------------------------------------------------------------------------------
-
 #import sys
 #import math
 #import time
@@ -167,6 +130,7 @@ class Mission:
 	
 	# call at mission start
 	def start():
+		# add short delay for GPS
 		flight_mode = 0
 		launch_pos = [sen.current_lat, sen.current_lon]
 		launch_alt = sen.current_altitude
@@ -213,7 +177,7 @@ class Mission:
 		
 		print("mission complete")
 		armed = False
-	
+
 #
 # Autostart
 # ------------------------------------------------------
