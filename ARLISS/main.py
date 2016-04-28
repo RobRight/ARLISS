@@ -177,9 +177,9 @@ class Move:
 		Script.SendRC(rc_pin_throttle, 1000, True)
 		# monitor vertical speed
 		if current_verticle_speed < takeoff_speed-2:
-			thottle+1
+			throttle+1
 		if current_verticle_speed > takeof_speed+2:
-			thottle-1
+			throttle-1
 		# maintain until at set altitude
 		if current_altitude > sen.temp_start_alt + takeoff_alt:
 			pass
@@ -308,7 +308,7 @@ class Mission:
 	# () test_takeoff	note: not implemented (unsure of command)
 	# () test_landing	note: must provide landing location
 	# () test_waypoint	note: must provide waypoint location
-	# () test_recovery	note: note implemented (This needs to be written and tested, posibly some resesarch into decent at hight spe)
+	# () test_recovery	note: note implemented (This needs to be written and tested, possibly some research into decent at hight speed)
 	# - - - - - - - -
 	# () - mission_alpah -
 	# -----------------
@@ -461,7 +461,7 @@ class Mission:
 			temp_wp = [temp_wp_lat, temp_wp_lon, temp_wp_alt]
 			mov.set_waypoint(temp_wp)
 		else:
-			# use known posistion
+			# use known position
 			mov.set_waypoint(save_loc_1)
 
 	# test recovery from free-fall
@@ -474,7 +474,7 @@ class Mission:
 			self.sen.get_flight_data()
 			self.sen.print_data()
 			self.sen.log_data()
-			# loop twise a sencond
+			# loop twice a second
 			time.sleep(1)
 
 	# Main ------------------
@@ -505,7 +505,7 @@ class Mission:
 		# navigate to target
 		navigation_phase = True
 		while navigation_phase:
-			# set succsessive waypoints leading to target or just target waypoint??
+			# set successive waypoints leading to target or just target waypoint??
 			mov.set_waypoint(target_pos, landing_start_alt+1000)
 			# reached the target?
 			if check_within_landing() == True:
@@ -547,7 +547,7 @@ class Mission:
 				#self.mission_alpha()
 			else:
 				print("error: mission_mode unknown")
-			# mission compelte
+			# mission complete
 			self.mission_complete = True
 
 	# call at mission start
