@@ -28,12 +28,13 @@ import MAVLink
 #
 class Logging:
 	log_enable = True
-	directory = os.path.expanduser('~') + '\Desktop\CODE_LOGS'
-	start_time = ();
+	directory = '' # path to user directory
+	start_time = (); # assigned at start by 'Mission' class
 
 	# set directory and create folder if not found
 	def __init__(self):
 		# http://askubuntu.com/questions/138922/path-to-user-desktop-using-python
+		directory = os.path.expanduser('~') + '\Desktop\CODE_LOGS'
 		# http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary
 		if not os.path.exists(self.directory):
 			os.makedirs(self.directory)
@@ -64,18 +65,30 @@ class Logging:
 # ------------------------------------------------------
 #
 class Move:
+	sen = Sensors()
 	log = Logging()
 
 	# --- SETTINGS START ---
 	default_takeoff_alt = 20 # m
 	default_takeoff_speed = 2 # m/s
 
+	esc_min = 0
+	esc_max = 0
+
 	# RC input [pin, min, max]
 	rc_throttle = [3, Script.GetParam('RC3_MIN'), Script.GetParam('RC3_MAX')]
 	rc_pitch = [2, Script.GetParam('RC4_MIN'), Script.GetParam('RC4_MAX')] # BACKWARDS
 	rc_roll = [1, Script.GetParam('RC5_MIN'), Script.GetParam('RC5_MAX')]
 	rc_yaw = [4, Script.GetParam('RC6_MIN'), Script.GetParam('RC6_MAX')]
+
+	# ESC output [pin, min, max]
+	#esc_fr = [1, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+	#esc_br = [2, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+	#esc_bl = [3, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+	#esc_fl = [4, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
 	# --- SETTINGS END ---
+
+	armed = False # set to True to engage system
 
 	def __init__(self):
 		# craft should be disarmed
@@ -91,8 +104,12 @@ class Move:
 
 	# call to engage motor at 0 to 1 speed
 	def rc_set_value(chan, in_val):
+		if in_val > 1:
+			print("error: rc_set_value greater than one.")
+			return False
 		val = rc_value_map(chan, in_val)
 		Script.SendRC(chan[0], val, True)
+		return True
 
 	# set value to all four rc channels
 	def rc_set_all(in_t, in_p, in_r, in_y):
@@ -104,7 +121,10 @@ class Move:
 	# reset all rc value inputs to idle
 	def rc_reset_all():
 		# throttle min, pitch half, roll half, yaw half
-		rc_set_all(rc_value_map(rc_throttle, 0), rc_value_map(rc_pitch, 0.5), rc_value_map(rc_roll, 0.5), rc_value_map(rc_yaw, 0.5))
+		rc_set_all(rc_value_map(rc_throttle, 0), \
+			rc_value_map(rc_pitch, 0.5), \
+			rc_value_map(rc_roll, 0.5), \
+			rc_value_map(rc_yaw, 0.5))
 
 	# engage craft for flight
 	# TESTED: False
@@ -116,6 +136,7 @@ class Move:
 		Script.WaitFor('ARMING MOTORS',15000)
 		rc_reset_all()
 		print("MOTORS ARMED")
+		self.armed = True
 		return True
 
 	# disarm motors (low power mode)
@@ -128,16 +149,32 @@ class Move:
 		Script.WaitFor('DISARMING MOTORS',15000)
 		rc_reset_all()
 		print("MOTORS DISARMED")
+		self.armed = False
 		return True
 
 	# test of rc control
-	def test_rc(self):
-		pin = rc_throttle[0]
-		min_val = rc_throttle[1]
-		max_val = rc_throttle[2]
-		Script.SendRC(pin, max_val/2, True)
-		time.sleep(2)
-		Script.SendRC(pin, min_val, True)
+	def test_rc(self, test):
+		if test == 0:
+			pin = rc_throttle[0]
+			min_val = rc_throttle[1]
+			max_val = rc_throttle[2]
+			Script.SendRC(pin, max_val/2, True)
+			time.sleep(2)
+			Script.SendRC(pin, min_val, True)r
+		elif test == 1:
+			# wave
+			# one at a time
+			val = 0.15
+			rc_set_value(esc_fr, val)
+			time.sleep(1)
+			rc_set_value(esc_br, val)
+			time.sleep(1)
+			rc_set_value(esc_bl, val)
+			time.sleep(1)
+			rc_set_value(esc_fl, val)
+			time.sleep(1)
+			# all at once
+			pass
 
 	# set new waypoint with altitude
 	# def set_waypoint(wp_lat, wp_lng, wp_alt):
@@ -178,21 +215,32 @@ class Move:
 		takeoff_speed = default_takeoff_speed
 		# must do manually?
 		print("begin takeoff procedure")
-		temp_start_alt = sen.current_altitude
+		temp_start_alt = self.sen.current_altitude
 		# arm
-		arm_craft()
+		self.arm_craft()
 		# enter loiter mode
-		mov.change_mode_loiter()
-		# engage motors
-		Script.SendRC(rc_throttle, 1000, True)
-		# monitor vertical speed
-		if current_verticle_speed < takeoff_speed-2:
-			throttle+1
-		if current_verticle_speed > takeof_speed+2:
-			throttle-1
+		self.change_mode_loiter()
+		# engage motors; warmup then throttle at 80%
+		self.rc_reset_all()
+		self.rc_set_all(0.15,-1,-1,-1)
+		time.sleep(1)
+
+		throttle_val = 0.8
+		temp_current_alt = self.sen.current_altitude
 		# maintain until at set altitude
-		if current_altitude > sen.temp_start_alt + takeoff_alt:
-			pass
+		while temp_current_alt < temp_start_alt + takeoff_alt:
+			# set throttle
+			#self.rc_set_all(throttle,-1,-1,-1)
+			self.rc_set_value(rc_throttle, throttle_val)s
+			'''
+			# monitor vertical speed
+			if current_verticle_speed < takeoff_speed-2:
+				throttle_val + 0.01
+			if current_verticle_speed > takeof_speed+2:
+				throttle_val - 0.01
+			'''
+			# update altitude
+			temp_current_alt = self.sen.current_altitude
 
 	# setup motor code stuff
 	def setup(self):
@@ -392,7 +440,6 @@ class Mission:
 	landed_pos = [0.0, 0.0]
 	landed = False
 	mission_complete = False
-	armed = False # set to True to engage system
 	mission_text = ''
 
 	# --- saved locations ---
@@ -489,8 +536,11 @@ class Mission:
 	def check_within_landing(self):
 		pass
 
+	def arm_craft():
+		self.move.arm_craft()
+
 	def disarm_craft():
-		self.armed = False
+		self.mov.disarm_craft()
 
 	def land_craft():
 		self.mov.start_landing()
@@ -627,9 +677,15 @@ class Mission:
 
 # autostart
 def autostart():
-	print("online")
-	mission = Mission()
-	mission.run_startup()
-	print("mission complete")
+	run_test_code = False
+	if (run_test_code):
+		# test code
+
+		# test code
+	else:
+		print("online")
+		mission = Mission()
+		mission.run_startup()
+		print("mission complete")
 
 autostart()
