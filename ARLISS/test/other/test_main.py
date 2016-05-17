@@ -34,11 +34,7 @@ class Logging:
 	# set directory and create folder if not found
 	def __init__(self):
 		# http://askubuntu.com/questions/138922/path-to-user-desktop-using-python
-<<<<<<< HEAD
 		directory = os.path.expanduser('~') + '\Documents\CODE_LOGS'
-=======
-		directory = os.path.expanduser('~') + '\Desktop\CODE_LOGS'
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 		# http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary
 		if not os.path.exists(self.directory):
 			os.makedirs(self.directory)
@@ -64,6 +60,7 @@ class Logging:
 			f.write(in_data)
 			f.close()
 
+
 #
 # Move Class
 # ------------------------------------------------------
@@ -86,6 +83,7 @@ class Move:
 	rc_yaw = [4, Script.GetParam('RC6_MIN'), Script.GetParam('RC6_MAX')]
 
 	# ESC output [pin, min, max]
+	# minitor ch1out - ch4out
 	#esc_fr = [1, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
 	#esc_br = [2, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
 	#esc_bl = [3, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
@@ -101,44 +99,44 @@ class Move:
 		# Script.SendRC(rc_throttle, 1000, True)
 		pass
 
-	def rc_value_map(chan, val): # val: 0 to 1
+	def rc_value_map(self, chan, val): # val: 0 to 1
 		min_val = chan[1]
 		max_val = chan[2]
 		return (max_val - min_val)*val + min_val
 
 	# call to engage motor at 0 to 1 speed
-	def rc_set_value(chan, in_val):
+	def rc_set_value(self, chan, in_val):
 		if in_val > 1:
 			print("error: rc_set_value greater than one.")
 			return False
-		val = rc_value_map(chan, in_val)
+		val = self.rc_value_map(chan, in_val)
 		Script.SendRC(chan[0], val, True)
 		return True
 
 	# set value to all four rc channels
-	def rc_set_all(in_t, in_p, in_r, in_y):
+	def rc_set_all(self, in_t, in_p, in_r, in_y):
 		if in_t != -1: rc_set_value(rc_throttle, in_t)
 		if in_p != -1: rc_set_value(rc_pitch, in_p)
 		if in_r != -1: rc_set_value(rc_roll, in_r)
 		if in_y != -1: rc_set_value(rc_yaw, in_y)
 
 	# reset all rc value inputs to idle
-	def rc_reset_all():
+	def rc_reset_all(self):
 		# throttle min, pitch half, roll half, yaw half
-		rc_set_all(rc_value_map(rc_throttle, 0), \
-			rc_value_map(rc_pitch, 0.5), \
-			rc_value_map(rc_roll, 0.5), \
-			rc_value_map(rc_yaw, 0.5))
+		self.rc_set_all(self.rc_value_map(self.rc_throttle, 0), \
+			self.rc_value_map(self.rc_pitch, 0.5), \
+			self.rc_value_map(self.rc_roll, 0.5), \
+			self.rc_value_map(self.rc_yaw, 0.5))
 
 	# engage craft for flight
 	# TESTED: False
 	def arm_craft(self):
 		print("arming motors")
-		change_mode_loiter()
-		rc_reset_all()
-		rc_set_all(0,0,1,1)
+		self.change_mode_loiter()
+		self.rc_reset_all()
+		self.rc_set_all(0,0,1,1)
 		Script.WaitFor('ARMING MOTORS',15000)
-		rc_reset_all()
+		self.rc_reset_all()
 		print("MOTORS ARMED")
 		self.armed = True
 		return True
@@ -147,11 +145,11 @@ class Move:
 	# TESTED: False
 	def disarm_craft(self):
 		print("disarming motors")
-		change_mode_loiter()
-		rc_reset_all()
-		rc_set_all(0,0,0,0)
+		self.self.change_mode_loiter()
+		self.rc_reset_all()
+		self.rc_set_all(0,0,0,0)
 		Script.WaitFor('DISARMING MOTORS',15000)
-		rc_reset_all()
+		self.rc_reset_all()
 		print("MOTORS DISARMED")
 		self.armed = False
 		return True
@@ -164,7 +162,7 @@ class Move:
 			max_val = rc_throttle[2]
 			Script.SendRC(pin, max_val/2, True)
 			time.sleep(2)
-			Script.SendRC(pin, min_val, True)r
+			Script.SendRC(pin, min_val, True)
 		elif test == 1:
 			# wave
 			# one at a time
@@ -183,11 +181,7 @@ class Move:
 	# set new waypoint with altitude
 	# def set_waypoint(wp_lat, wp_lng, wp_alt):
 	# TESTED: False
-<<<<<<< HEAD
 	def set_waypoint(self,loc): # add a wait for waypoint complete?? -----------------
-=======
-	def set_waypoint(self,loc):
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 		#http://www.diydrones.com/forum/topics/mission-planner-python-script?commentId=705844%3AComment%3A1306487
 		new_wp = MissionPlanner.Utilities.Locationwp()						# create waypoint object
 		MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp,loc[0])		# set waypoint latitude
@@ -253,6 +247,7 @@ class Move:
 	# setup motor code stuff
 	def setup(self):
 		rc_reset_all()
+
 
 #
 # Sensors Class
@@ -395,6 +390,7 @@ class Sensors:
 		self.log.log_data(sen_data, "data")
 		print("data logged")
 
+
 #
 # Mission Class
 # ------------------------------------------------------
@@ -403,19 +399,6 @@ class Mission:
 	mov = Move()
 	sen = Sensors()
 	log = Logging()
-
-	# mission options:
-	# ----------------
-	# (0) no mission
-	# - - - - - - - -
-	# () test_takeoff	note: not implemented (unsure of command)
-	# () test_landing	note: must provide landing location
-	# () test_waypoint	note: must provide waypoint location
-	# () test_recovery	note: note implemented (This needs to be written and tested, possibly some research into decent at hight speed)
-	# - - - - - - - -
-	# () - mission_alpah -
-	# -----------------
-	mission_mode = 0
 
 	requrie_gps_lock = True
 	testing = True
@@ -432,54 +415,21 @@ class Mission:
 	# --- SET BEFORE MISSION ALPHA ---
 
 	# state variables
-	launch_time = 0
-	launch_pos = [0.0, 0.0]
-	launch_alt = 0
-	rocket_launched = False # true once rocket launched
-	ejected_time = 0
-	ejected_pos = [0.0, 0.0]
-	ejected_alt = 0
-	ejected = False # true once released from rocket
-	recovered_time = 0
-	recovered_pos = [0.0, 0.0]
-	recovered_alt = 0
-	recovered = False # true once in stable flight
 	landed_time = 0
 	landed_pos = [0.0, 0.0]
 	landed = False
 	mission_complete = False
-	mission_text = ''
 
 	# --- saved locations ---
-<<<<<<< HEAD
 	save_loc_home = [39.4158266, -119.7347143] # by cars
 	save_loc_0 = [39.4164607, 119.7364712] # middle of field
 	save_loc_1 = [39.4158556, -119.7354412] # middle, closer to cars
-=======
-	save_loc_home = [39.4158266, -119.7347143, 60] # by cars
-	save_loc_0 = [39.4164607, 119.7364712, 60] # middle of field
-	save_loc_1 = [39.4158556, -119.7354412, 60] # middle, closer to cars
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 
 	def __init__(self):
 		self.log.log_enable = self.log_data
 		start_time = time.localtime()
 		self.log.start_time = start_time
 		mov.setup()
-
-	# Utils ------------------
-	def print_intro(self):
-		self.log.log_data("online", "log")
-		print("mission online")
-		print("mode: " + str(self.mission_mode) + ":" + self.mission_text)
-		print("")
-		print("warming up..")
-
-	def print_start(self):
-		self.log.log_data("ready", "log")
-		print("warmup complete")
-		print("starting mission")
-		print("")
 
 	def check_gps_lock(self):
 		if self.debug: print("starting: check_gps_lock")
@@ -517,73 +467,23 @@ class Mission:
 		launch_alt = self.sen.current_altitude
 		print("- done")
 
-	# ------------------------------
-	# test until rocket launched
-	def wait_for_rocket_launch(self):
-		while rocket_launched == false:
-			if sen.current_altitude>start_alt+1000:
-				rocket_launched = True
-		print("rocket launched")
-
-	# test until rocket ejected
-	def wait_for_rocket_ejected(self):
-		while ejected == false:
-			if sen.current_altitude>max_alt:
-				max_alt = sen.current_altitude
-			if sen.current_altitude<max_alt+200:
-				ejected = True # note: maybe use accelerometer
-		print("quad ejected")
-		ejected_pos = [sen.curren_lat, sen.curren_lon]
-
-	# wait for set altitude
-	def wait_for_altitude(self, des_alt, below):
-		# add timeout
-		ca = sen.current_altitude
-		if below:
-			while ca>des_alt:
-				ca = sen.current_altitude
-		else:
-			while ca<des_alt:
-				ca = sen.current_altitude
-		return True
-
 	def check_within_landing(self):
 		pass
 
-	def arm_craft():
+	def arm_craft(self):
 		self.move.arm_craft()
+		self.armed = True
 
-	def disarm_craft():
+	def disarm_craft(self):
 		self.mov.disarm_craft()
+		self.armed = False
 
-	def land_craft():
+	def land_craft(self):
 		self.mov.start_landing()
 		self.landed = True
 
-	def set_mission_text():
-		# (0) no mission
-		if self.mission_mode == 0:
-			self.mission_text = 'no mission'
-		# (1) test_landing
-		elif self.mission_mode == 1:
-			self.mission_text = 'test_landing'
-		# (2) test_navigation
-		elif self.mission_mode == 2:
-			self.mission_text = 'test_navigation'
-<<<<<<< HEAD
-			# sub missions?
-=======
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
-		# (3) test_sensors
-		elif self.mission_mode == 3:
-			self.mission_text = 'test_sensors'
-		# (11) - mission_alpha -
-		elif self.mission_mode == 11:
-			self.mission_text = 'mission_alpha'
-		else:
-			print("error: mission_mode unknown")
-
 	# Test -------------------
+
 	# take off from ground, reach set altitude and loiter
 	def test_takeoff(self):
 		mov.takeoff_from_ground()
@@ -594,40 +494,20 @@ class Mission:
 		mov.set_waypoint(save_loc_home)
 		mov.change_mode_landing()
 
-<<<<<<< HEAD
 	# set waypoint given a saved position and altitiude
-	def set_waypoint(self, pos[], alt):
+	def set_waypoint(self, pos, alt):
 		lat = pos[0]
 		lng = pos[1]
 		mov.set_waypoint([lat, lng, alt])
 
 	#  enter custom waypoint
 	def custom_waypoint(self):
-=======
-	# test waypoint navigation
-	def test_waypoint(self, op):
-		if op:
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 			# ask user for position with altitude
 			temp_wp_lat = input("Enter waypoint latitude")
 			temp_wp_lon = input("Enter waypoint longitude")
 			temp_wp_alt = input("Enter waypoint altitude")
 			temp_wp = [temp_wp_lat, temp_wp_lon, temp_wp_alt]
 			mov.set_waypoint(temp_wp)
-<<<<<<< HEAD
-
-	# test recovery from free-fall
-	def test_recovery(self):
-		self.recover_craft()
-=======
-		else:
-			# use known position
-			mov.set_waypoint(save_loc_1)
-
-	# test recovery from free-fall
-	def test_recovery(self):
-		recover_craft()
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 
 	def loop_sensor_output(self):
 		while True:
@@ -637,67 +517,6 @@ class Mission:
 			self.sen.log_data()
 			# loop twice a second
 			time.sleep(1)
-			if self.debug: print("- done")
-
-	# Main ------------------
-	# recover craft from unstable flight
-	def phase_recover_craft(self):
-		pass
-
-	# fly to waypoint
-	def phase_directed_flight(self):
-		if self.debug: print("starting: phase_directed_flight")
-		self.navigation_phase = True
-		while self.navigation_phase:
-			# set successive waypoints leading to target or just target waypoint??
-			self.mov.set_waypoint(self.target_pos, self.landing_start_alt+1000)
-			if self.check_within_landing() == True:
-				self.navigation_phase = False
-		if self.debug: print("- done")
-
-	# ------------
-	# mission alpha code start
-	# ------------
-	def mission_alpha(self):
-		# wait for launch
-		self.wait_for_rocket_launch()
-		self.wait_for_rocket_ejected()
-		# wait until recovery start alt
-		self.wait_for_altitude(recovery_start_alt, True)
-		# begin recovery
-		self.recover_craft()
-		# navigate to target
-		self.phase_directed_flight()
-		# land then disarm
-		self.land_craft()
-		self.disarm_craft()
-	# ------------
-	# mission alpha code end
-	# ------------
-
-	# main mission code runner
-	def run_main(self):
-		self.start()
-		while self.mission_complete == False:
-			if self.debug: print("starting: run_main")
-			# (0) no mission
-			if self.mission_mode == 0:
-				pass
-			# (1) test_landing
-			elif self.mission_mode == 1:
-				self.test_landing()
-			# (2) test_navigation
-			elif self.mission_mode == 2:
-				self.test_waypoint(False)
-			# (3) test_sensors
-			elif self.mission_mode == 3:
-				self.loop_sensor_output()
-			# (11) - mission_alpha -
-			elif self.mission_mode == 11:
-				self.mission_alpha()
-			else:
-				print("error: mission_mode unknown")
-			self.mission_complete = True
 			if self.debug: print("- done")
 
 	# call at mission start
@@ -713,15 +532,9 @@ class Mission:
 
 # autostart
 def autostart():
-	run_test_code = False
-	if (run_test_code):
-		# test code
-
-		# test code
-	else:
-		print("online")
-		mission = Mission()
-		mission.run_startup()
-		print("mission complete")
+	print("online")
+	mission = Mission()
+	mission.run_startup()
+	print("mission complete")
 
 autostart()
