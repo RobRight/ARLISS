@@ -34,11 +34,7 @@ class Logging:
 	# set directory and create folder if not found
 	def __init__(self):
 		# http://askubuntu.com/questions/138922/path-to-user-desktop-using-python
-<<<<<<< HEAD
 		directory = os.path.expanduser('~') + '\Documents\CODE_LOGS'
-=======
-		directory = os.path.expanduser('~') + '\Desktop\CODE_LOGS'
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 		# http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary
 		if not os.path.exists(self.directory):
 			os.makedirs(self.directory)
@@ -183,11 +179,7 @@ class Move:
 	# set new waypoint with altitude
 	# def set_waypoint(wp_lat, wp_lng, wp_alt):
 	# TESTED: False
-<<<<<<< HEAD
-	def set_waypoint(self,loc): # add a wait for waypoint complete?? -----------------
-=======
-	def set_waypoint(self,loc):
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
+	def set_waypoint(self,loc): # add a wait for waypoint complete??
 		#http://www.diydrones.com/forum/topics/mission-planner-python-script?commentId=705844%3AComment%3A1306487
 		new_wp = MissionPlanner.Utilities.Locationwp()						# create waypoint object
 		MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp,loc[0])		# set waypoint latitude
@@ -451,15 +443,9 @@ class Mission:
 	mission_text = ''
 
 	# --- saved locations ---
-<<<<<<< HEAD
 	save_loc_home = [39.4158266, -119.7347143] # by cars
 	save_loc_0 = [39.4164607, 119.7364712] # middle of field
 	save_loc_1 = [39.4158556, -119.7354412] # middle, closer to cars
-=======
-	save_loc_home = [39.4158266, -119.7347143, 60] # by cars
-	save_loc_0 = [39.4164607, 119.7364712, 60] # middle of field
-	save_loc_1 = [39.4158556, -119.7354412, 60] # middle, closer to cars
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 
 	def __init__(self):
 		self.log.log_enable = self.log_data
@@ -570,10 +556,6 @@ class Mission:
 		# (2) test_navigation
 		elif self.mission_mode == 2:
 			self.mission_text = 'test_navigation'
-<<<<<<< HEAD
-			# sub missions?
-=======
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 		# (3) test_sensors
 		elif self.mission_mode == 3:
 			self.mission_text = 'test_sensors'
@@ -594,7 +576,6 @@ class Mission:
 		mov.set_waypoint(save_loc_home)
 		mov.change_mode_landing()
 
-<<<<<<< HEAD
 	# set waypoint given a saved position and altitiude
 	def set_waypoint(self, pos[], alt):
 		lat = pos[0]
@@ -603,23 +584,21 @@ class Mission:
 
 	#  enter custom waypoint
 	def custom_waypoint(self):
-=======
+		pass
 	# test waypoint navigation
 	def test_waypoint(self, op):
 		if op:
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 			# ask user for position with altitude
 			temp_wp_lat = input("Enter waypoint latitude")
 			temp_wp_lon = input("Enter waypoint longitude")
 			temp_wp_alt = input("Enter waypoint altitude")
 			temp_wp = [temp_wp_lat, temp_wp_lon, temp_wp_alt]
 			mov.set_waypoint(temp_wp)
-<<<<<<< HEAD
 
 	# test recovery from free-fall
 	def test_recovery(self):
 		self.recover_craft()
-=======
+
 		else:
 			# use known position
 			mov.set_waypoint(save_loc_1)
@@ -627,7 +606,6 @@ class Mission:
 	# test recovery from free-fall
 	def test_recovery(self):
 		recover_craft()
->>>>>>> c1018a72a4463c287ca1cfd3a758d756093678bf
 
 	def loop_sensor_output(self):
 		while True:
