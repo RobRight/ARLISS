@@ -1,13 +1,13 @@
 # ARLISS
-### ArduPilot Python code
+### ArduPilot Python 2.7 code
 
 ## Files:
 
  -------------------------------------------------------------------------------------- <br />
-<b>ARLISS:</b> only offical code here <br />
+<b>ARLISS:</b> only offical flight code here <br />
 <b>TestCode:</b> all other code here <br />
-	- Other <br />
-	- RCdrone_joe: includes drop code <br />
+	- Other tests <br />
+	- Drop code <br />
 
 
 
@@ -17,13 +17,14 @@
 
 ### payload_drop.py (payload_drop):
 
-[TestCode/RCdrone_joe/payload_drop.py] (TestCode/RCdrone_joe/payload_drop.py)
+[TestCode/drop_code/payload_drop.py] (TestCode/drop_code/payload_drop.py)
 
  -------------------------------------------------------------------------------------- <br />
 
 ## Useful Links:
 
  -------------------------------------------------------------------------------------- <br />
+wayoints from code: http://diydrones.com/forum/topics/how-to-python-script-a-time-based-flight-plan <br />
 MissionPlanner: http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/ <br />
 ArduPilot: http://ardupilot.com/ <br />
 Development Site: http://dev.ardupilot.com/ <br />
@@ -113,12 +114,8 @@ def main_run():
 			#if distance_to_target < landing_start_dist:
 				navigation_phase = False
 
-	mov.start_landing()
-	# test for landed
-	landed = True
-	
-	print("mission complete")
-	armed = False
+	if (mov.land_craft()):
+		print("mission complete")
 	
 ```
 

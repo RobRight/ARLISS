@@ -41,6 +41,8 @@ class Sensors:
 		pass
 
 	# get current flight data
+	# info: under 'Python Variable: cs'
+	# http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
 	def get_data(self):
 		#print("got new sensor data")
 		global current_time, current_mode, current_distance, current_altitude, \
@@ -89,6 +91,9 @@ class Move:
 
     def __init__(self):
         pass
+
+	# - waypoints begin -
+	# passing all (loc,lng,alt) values will send this waypoint to craft, begining immediatly.
     def set_waypoint(self, loc_lat, loc_lng, loc_alt):
     #http://www.diydrones.com/forum/topics/mission-planner-python-script?commentId=705844%3AComment%3A1306487
     new_wp = MissionPlanner.Utilities.Locationwp()						# create waypoint object
@@ -99,28 +104,39 @@ class Move:
     if (self.verbose) print("waypoint set: lat:" + str(loc[0]) + " lng:" + str(loc[1]) + " alt:" + str(loc[2]))
     # can check waypoint distance for complete
 
+	# returns True if waypoint minimum distance is met
     def waypoint_complete(self):
         if sen.current_distance < waypoint_tolerance: return True
         return False
 
+	# waits for waypoint_complete() to finish
     def wait_waypoint_complete(self):
         while(self.waypoint_complete()): pass
+	# - waypoints end -
 
+# autostart
 def autostart():
     print("code begin")
     mov = Move()
 
+# Mission functions
 def path_test():
-    print("begin path")
+	print("testing waypoints")
+	Script.ChangeMode("Guided")
+	if (self.verbose) print("guided mode")
+    if (self.verbose) print("begin path")
     loc = [39.417289, -119.736879]
     loc2 = [39.416095, -119.736707]
     mov = Move()
     # one
+	if (self.verbose) print("location one (1)")
     mov.set_waypoint(*loc, 100)
     wait_waypoint_complete()
     # two
+	if (self.verbose) print("location two (2)")
     mov.set_waypoint(*loc, 50)
     wait_waypoint_complete()
+	print("waypoint test complete")
 
 # runs at start
 autostart()
