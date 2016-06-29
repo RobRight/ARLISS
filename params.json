@@ -1,0 +1,6 @@
+{
+  "name": "UNR ARLISS",
+  "tagline": "ArduPilot Python script for autonomous navigation and control during ARLISS challenge.",
+  "body": "# UNR - ARLISS club\r\n\r\n## code\r\nflight script for enabling autonomous quad-rotor control during mission using Ardupilot (copter), MAVLink, Mission Planner and Python 2.7.",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
