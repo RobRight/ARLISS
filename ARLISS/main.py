@@ -9,9 +9,10 @@ repo: https://github.com/RobRight/ARLISS/
 
 '''
 
-import os
-import time
-import clr
+import sys # exit
+import os # log file path
+import time # sleep and current time
+import clr # AddReference
 clr.AddReference("MissionPlanner")
 import MissionPlanner
 clr.AddReference("MissionPlanner.Utilities")
@@ -50,7 +51,7 @@ class Logging:
 			f.close()
 
 	# write given data to file
-	def log_data(self, in_data, in_f_name):
+	def log_data(self, in_f_name, in_data):
 		if self.log_enable:
 			filename = self.generate_filename(in_f_name)
 			f = open(filename, 'a')
@@ -131,11 +132,21 @@ class Sensors:
 		current_gyro.append(cs.gy)
 		current_gyro.append(cs.gz)
 
+	def display_data(self):
+		print("- printing new sensor data -")
+		print("current_time: " + str(self.current_time))
+		print("current_mode: " + self.current_mode)
+		print("current_altitude: " + str(self.current_altitude))
+		print("current_ground_speed: " + str(self.current_ground_speed))
+		print("current_gps_count: " + str(self.current_gps_count))
+		print("current_armed: " + str(self.current_armed))
+
 
 # Move class
 # ------------------------------------------------------
 # waypoints, land, arm/disarm
 # note: need loiter function; check channel mappings
+#
 class Move:
     sen = Sensors()
 	log = Logging()
@@ -238,7 +249,7 @@ class Move:
     MissionPlanner.Utilities.Locationwp.alt.SetValue(new_wp,loc_alt) # set waypoint altitude
     MAV.setGuidedModeWP(new_wp) # begin waypoint
     # prints waypoint info.
-    if (self.verbose) print("waypoint set: lat:" + str(loc[0]) + " lng:" + str(loc[1]) + " alt:" + str(loc[2]))
+    if (self.verb`os`e) print("waypoint set: lat:" + str(loc[0]) + " lng:" + str(loc[1]) + " alt:" + str(loc[2]))
 
 	# returns True if distance to current waypoint minimum value 'waypoint_tolerance' is met
     # pass: NA
@@ -256,6 +267,7 @@ class Move:
 
     # - modes begin -
     # engage landing
+	# do not return until landing complete or timeout
 	# pass: NA
 	def change_mode_landing(self):
 		# http://copter.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/#mav_cmd_nav_land
@@ -278,9 +290,12 @@ class Move:
 		Script.WaitFor('RTL', 5000)
 
 	# takeoff for testing and non-assisted flying
+	# do not return until takeoff completes or timeout
 	# pass: NA - not ready
-    '''
+
 	def change_mode_takeoff(self):
+	pass
+	'''
 		takeoff_alt = default_takeoff_alt
 		takeoff_speed = default_takeoff_speed
 		# must do manually?
@@ -326,44 +341,181 @@ class Move:
 # Mission Class
 # ------------------------------------------------------
 # setup for tests of minor classes (Loggin, Sensors, Move)
+# note:
+# 	[start, launch, eject, recover, land]
+#
 class Mission:
     mov = Move()
 	sen = Sensors()
 	log = Logging()
+	test = Testing()
 
-    # - settings begin -
-    # mission options:
+	# mission options:
 	# ----------------
 	# (0) no mission
-    # (1) test sensors - displays current sensor data
-    # (2) test arm and disarm - arms on ground, seconds later disarms.
-	# (3) test takeoff and landing - goes up and lands at the same location.
-	# (4) test waypoints - flys to a few waypoints, then rtl and land.  note: check waypoints locations and rtl land settings in MP.
-    #
+    # (t1) test arm and disarm - arms on ground, seconds later disarms.
+	# (t2) test takeoff and landing - goes up and lands at the same location.
+	# (t3) test waypoints - flys to a few waypoints, then rtl and land.  note: check waypoints locations and rtl land settings in MP.
+    # -----------------
 	# () test recovery (NI) - not implemented (This needs to be written and tested, possibly some research into decent at hight speed and needs to start in free-fall.)
-	# - - - - - - - -
-	# (6) - mission_alpah - complete mission from idle, launch, recovery, navigation, and landling.
 	# -----------------
-	mission_mode = 0
+	# (ma-01) - mission_alpah - complete mission from idle, launch, recovery, navigation, and landling.
+	# -----------------
+
+    # - settings begin -
+	mission_mode = "0"
     # -----------------
     verbose = True
 	log_data = True
     # - settings end -
 
-    # state variables
-	launch_time = 0
-	launch_pos = [0.0, 0.0]
-	launch_alt = 0
-    landed_time = 0
-	landed_pos = [0.0, 0.0]
+	# [start, launch, eject, recover, land]
+	start_time = [0, 0, 0, 0, 0]
+	start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+	start_alt = [0, 0, 0, 0, 0]
+	# state variables
 	landed = False
+	mission_begin = False
 	mission_complete = False
 
     def __init__(self):
-        pass
+        print("mission class online")
 
+	# reset all variables
+	def reset_values():
+		# start, launch, eject, recover, land
+		start_time = [0, 0, 0, 0, 0]
+		start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+		start_alt = [0, 0, 0, 0, 0]
+		# state variables
+		landed = False
+		mission_begin = False
+		mission_complete = False
+
+	# setup at start
     def setup():
-        pass
+		self.reset_values()
+		# log starting data
+        sen.get_data() # update
+		self.start_time[0] = sen.current_time
+		self.start_pos[0] = [sen.current_lat,  sen.current_lng]
+		self.start_alt = sen.current_altitude
+
+	def ma_01():
+		pass
+
+	# run mission
+	def run_mission():
+		print("running mission based on 'mission_mode'")
+		if (mission_mode == "0"): # no mission
+			print("no mission to run")
+		elif (mission_mode == "t1"): # test arm / disarm
+			test.test_arm()
+		elif (mission_mode == "t2"): # test takeoff / landing
+			test.test_takeoff()
+		elif (mission_mode == "t3"): # test waypoints
+			test.test_waypoints()
+		elif (mission_mode == "ma-01"):
+			print("starting MissionAlpha-01")
+			self.ma_01()
+			print("mission complete")
+		else:
+			print("error: mission_mode unknown in run_mission()")
+			print("exiting")
+			time.sleep(3)
+			sys.exit()
+		print("run_mission() complete")
 
     def autorun():
-        pass
+		print("mission class - running setup")
+        self.setup()
+		print("mission class - setup complete")
+		self.run_mission()
+
+#
+# Testing class
+# ------------------------------------------------------
+#
+class Testing:
+	def __init__(self):
+		pass
+	# test file operations
+	def test_filelog():
+		print("test_filelog begin")
+		log = Logging()
+		log.log_data("test_log", "test log data. test_log_empty should be empty")
+		log.log_data("test_log_empty", "test log.  if here then FAIL")
+		log.clear_log("test_log_empty")
+		print("test_logfile compltete")
+
+	# test sensor class
+	def test_sensors():
+		print("test_sensors begin")
+		sen = Sensors()
+		num_in = raw_input("type in the desired sensor print iterations: (ex 2)")
+		if(isinstance(num_in, (int, long)):
+			print("input fails check. exiting")
+			time.sleep(1)
+			sys.exit()
+		time.sleep(1)
+		sen = Sensors()
+		for num in range(num)
+			sen.get_data()
+			sen.display_data()
+			time.sleep(1)
+		print("test_sensors complete")
+
+	# test arm and disarm
+	def test_arm():
+		# arm
+		print("test_arm - arming craft")
+		mov.arm_craft()
+		# move stick a bit so it does not auto disarm.
+		mov.rc_set_all(-1,-1,-1,0.6)
+		time.sleep(0.4)
+		mov.rc_reset_all()
+		time.sleep(1.6)
+		# disarm
+		print("test_arm - disarming craft")
+		mov.disarm_craft()
+
+	def test_takeoff():
+		# takeoff
+		print("test_takeoff - taking off")
+		mov.change_mode_takeoff()
+		# land
+		print("test_takeoff - landing")
+		mov.change_mode_landing()
+
+	def test_waypoints():
+		# move to waypoint 1
+		print("test_waypoints - move to waypoint one (1)")
+		# wp 2
+		print("test_waypoints - move to waypoint two (2)")
+		# rtl
+
+# autostart function
+def autostart():
+	run_test = True
+	if (run_test):
+		test = Testing()
+		#test.test_filelog()
+		#test.test_sensors()
+		sys.exit()
+	# check if craft ready
+	print("please confirm that the craft prechecks pass")
+	response = raw_input("type 'yes' if prechecks pass, 'no' otherwise")
+	if (response.lower() == 'yes'):
+		# start script
+		print("script online")
+		print("-------------")
+		mission = Mission()
+		mission.autorun()
+		print("---------------")
+		print("script complete")
+		sys.exit()
+	else:
+		print("quitting.. run again once prechecks pass")
+
+# run autostart
+autostart()
