@@ -35,7 +35,7 @@ class Config:
     default_takeoff_alt = 20  # m ??
     default_takeoff_speed = 2  # m/s ??
     # land
-    desired_vert_speed = -0.1 # once vs here. landed
+    desired_vert_speed = -0.2 # once vs here. landed
     # waypoints
     waypoint_tolerance = 2  # m ??
     ## custom_path = [0,1,2,3,4,5,6,7,8,9,10]
@@ -325,6 +325,21 @@ class Move:
         self.armed = False
         return True
     # - rc end -
+    
+    # input: loc: [lat, lon], dist: distance in meters, dir: direction in degrees
+    def generate_location(self, loc, dist, dir):
+        # Earths radius, sphere
+        R=6378137
+        # offsets in meters
+        dn = dist*math.cos(math.radians(dir))
+        de = dist*math.sin(math.radians(dir))
+        # coordinate offsets in radians
+        dLat = dn/R
+        dLon = de/(R*math.cos(math.pi*loc[0]/180))
+        # offsetPosition, decimal degrees
+        new_lat = loc[0] + dLat * 180/math.pi
+        new_lon = loc[1] + dLon * 180/math.pi
+        return new_lat, new_lon
 
     # - waypoints begin -
     # passing all ([loc,lng],alt) values will send this waypoint to craft
@@ -375,6 +390,11 @@ class Move:
             self.sen.get_data()
             if self.sen.current_vertical_speed < 0.0 and self.sen.current_vertical_speed > self.con.desired_vert_speed:
                 landing = False
+        temp_armed = True
+        while temp_armed:
+            self.sen.get_data()
+            temp_armed = self.sen.current_armed
+        self.change_mode_guided()
         self.log.log_data("move class - landing complete")
         return True
 
@@ -444,10 +464,14 @@ class Move:
             check_pass = False
             self.log.log_data("check_ready - error: craft armed")
         # location check
-        if self.con.location == "dem": pass
+        if self.con.location == "dem": pass # load values into loc variable
         else:
             check_pass = False
             self.log.log_data("check_ready - error: location not recognized")
+        # gps lock
+        if self.sen.current_gps_stat != 3:
+            check_pass = False
+            self.log.log_data("check_ready - error: gps fail")
         # return
         return check_pass
 
@@ -654,6 +678,12 @@ class Mission:
 # autostart code
 log = Logging()
 con = Config()
+
+mov = Move()
+val1, val2 = mov.generate_location(con.loc_dem[0], 20, 90)
+print(val1)
+print(val2)
+'''
 if (con.run_test):
     log.log_data("run_test begin")
     test = Testing()
@@ -668,3 +698,4 @@ else:
     mission.autorun()
     log.log_data("---------------")
     log.log_data("script complete")
+'''
