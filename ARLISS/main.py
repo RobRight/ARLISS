@@ -1,3 +1,4 @@
+import math  # math
 import os  # log file path
 import time  # sleep and current time
 import clr  # AddReference
@@ -8,18 +9,80 @@ import MissionPlanner
 from MissionPlanner.Utilities import Locationwp
 import MAVLink
 
+# mission options:
+# -----------------
+# (0) no mission
+# (t1) test arm and disarm - arms on ground, seconds later disarms.
+# (t2) test takeoff and landing - goes up and lands at the same location.
+# (t3) test waypoints - flys to a few waypoints, then rtl and land
+# (t4) (NI) test recovery (NI) - not implemented
+# (ma-01) - mission_alpah - complete mission from idle, launch, recovery, navigation, and landling.
+
+# location options:
+# -----------------
+# (dem) Demonte Ranch
+# (brd) (NI) Black Rock Desert (NI) - not implemented
+
+class Config:
+    # - general settings -
+    verbose = True
+    mission_mode = "t2"
+    location = "dem"
+    run_test = False # sensor and file testing
+    require_disarm = False
+    ## custom_path = [0,1,2,3,4,5,6,7,8,9,10]
+    # ---------------------------
+    # - testing class -
+    # test_arm function
+    test_disarm = False  # not implemented
+    # test_waypoints function
+    include_takeoff = False  # also test_takeoff --
+    testing_altitude = 30  # units
+    wp_1_index = 2  # test_waypoint loc 1
+    wp_2_index = 5
+    return_after = True
+    # - logging class -
+    log_enable = True  # enable file logging
+    print_enable = True  # enable console logging
+    default_name = "log_file"  # file log filename prefix
+    # - move class -
+    # min distance from waypoint before moving on
+    waypoint_tolerance = 2  # m ??
+    default_takeoff_alt = 20  # m ??
+    default_takeoff_speed = 2  # m/s ??
+    # rc pins
+    rc_throttle_pin = 3
+    rc_pitch_pin = 2
+    rc_roll_pin = 1
+    rc_yaw_pin = 4
+    # esc pins
+    esc_fr_pin = 0
+    esc_br_pin = 0
+    esc_bl_pin = 0
+    esc_fl_pin = 0
+    # ---------------------------
+    # locations: [latitude, longitude]
+    # demonte rance
+    loc_dem = [
+        [39.415847, -119.734851],  # 0
+        [39.417526, -119.734867],  # 1
+        [39.416714, -119.735511],  # 2
+        [39.416747, -119.737741],  # 3
+        [39.417728, -119.736461],  # 4
+        [39.416725, -119.736518],  # 5
+        [39.415816, -119.736523],  # 6
+        [39.414974, -119.736552],  # 7
+        [39.413872, -119.736562],  # 8
+        [39.412644, -119.736585],  # 9
+        [39.413439, -119.735824]]  # 10
+
 
 #
 # Logging Class
 # ------------------------------------------------------
 #
 class Logging:
-    # - settings begin -
-    log_enable = True
-    print_enable = True
-    default_name = "log_file"
-    # - settings end -
-    
+    con = Config()
     directory = ''  # path to user directory
     start_time = ()  # assigned at start by 'Mission' class
 
@@ -41,29 +104,29 @@ class Logging:
 
     # clear given file
     def clear_log(self, in_f_name):
-        if self.log_enable:
+        if self.con.log_enable:
             filename = self.generate_filename(in_f_name)
             f = open(filename, 'w')
             f.close()
 
     # write given data to file
     def log_data(self, in_data):
-        if self.log_enable:
-            filename = self.generate_filename(self.default_name)
+        if self.con.log_enable:
+            filename = self.generate_filename(self.con.default_name)
             f = open(filename, 'a')
             f.write(in_data + "\n")
             f.close()
-        if self.print_enable is True:
+        if self.con.print_enable is True:
             print(in_data)
     
     # write given data to file with given name
     def log_data_custom(self, in_name, in_data):
-        if self.log_enable:
+        if self.con.log_enable:
             filename = self.generate_filename(in_name)
             f = open(filename, 'a')
             f.write(in_data + "\n")
             f.close()
-        if self.print_enable is True:
+        if self.com.print_enable is True:
             print(in_name + ": " + in_data)
 
 
@@ -105,35 +168,27 @@ class Sensors:
     # info: under 'Python Variable: cs'
     # http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
     def get_data(self):
-        ## self.log.log_data("got new sensor data")
-        '''
-        global current_time, current_mode, current_distance, current_altitude, \
-            current_vertical_speed, current_ground_speed, current_ground_course, \
-            current_waypoint, current_wind_direction, current_wind_speed, current_roll, \
-            current_pitch, current_yaw, current_lat, current_lng, current_gps_stat, \
-            current_gps_count, current_battery_voltage, current_armed, \
-            current_accel, current_gyro
-        '''
-        
+        ## self.log.log_data("logging class - got new sensor data")
+
         self.current_time = time.time()
-        self.current_mode = cs.mode
-        self.current_distance = cs.wp_dist
+        self.current_mode = cs.mode  # NOTE
+        self.current_distance = cs.wp_dist  # NOTE
         self.current_waypoint = cs.wpno
-        self.current_altitude = cs.alt
-        self.current_vertical_speed = cs.verticalspeed
-        self.current_ground_speed = cs.groundspeed
+        self.current_altitude = cs.alt  # NOTE
+        self.current_vertical_speed = cs.verticalspeed  # NOTE
+        self.current_ground_speed = cs.groundspeed  # NOTE
         self.current_ground_course = cs.groundcourse
         self.current_wind_direction = cs.wind_dir
         self.current_wind_speed = cs.wind_vel
-        self.current_roll = cs.roll
-        self.current_pitch = cs.pitch
+        self.current_roll = cs.roll  # NOTE
+        self.current_pitch = cs.pitch  # NOTE
         self.current_yaw = cs.yaw
         self.current_lat = cs.lat
         self.current_lng = cs.lng
         self.current_gps_stat = cs.gpsstatus
         self.current_gps_count = cs.satcount
         self.current_battery_voltage = cs.battery_voltage
-        self.current_armed = cs.armed
+        self.current_armed = cs.armed  # NOTE
         self.current_altitude_error = cs.alt_error
 
         self.current_accel = []
@@ -145,9 +200,6 @@ class Sensors:
         self.current_gyro.append(cs.gx)
         self.current_gyro.append(cs.gy)
         self.current_gyro.append(cs.gz)
-    
-    def retun_armed():
-        return cs.armed
     
     # log sensor data to 'log_data' file
     def log_data(self):
@@ -169,24 +221,18 @@ class Sensors:
 class Move:
     sen = Sensors()
     log = Logging()
+    con = Config()
 
-    # - settings begin -
-    verbose = True
-    # distance from waypoint allowed before moving on
-    waypoint_tolerance = 2  # units???
-    default_takeoff_alt = 20  # m
-    default_takeoff_speed = 2  # m/s
     # RC input [pin, min, max] - check direction
-    rc_throttle = [3, Script.GetParam('RC3_MIN'), Script.GetParam('RC3_MAX')]
-    rc_pitch = [2, Script.GetParam('RC4_MIN'), Script.GetParam('RC4_MAX')]  # B
-    rc_roll = [1, Script.GetParam('RC5_MIN'), Script.GetParam('RC5_MAX')]
-    rc_yaw = [4, Script.GetParam('RC6_MIN'), Script.GetParam('RC6_MAX')]
+    rc_throttle = [con.rc_throttle_pin, Script.GetParam('RC3_MIN'), Script.GetParam('RC3_MAX')]
+    rc_pitch = [con.rc_pitch_pin, Script.GetParam('RC4_MIN'), Script.GetParam('RC4_MAX')]  # B
+    rc_roll = [con.rc_roll_pin, Script.GetParam('RC5_MIN'), Script.GetParam('RC5_MAX')]
+    rc_yaw = [con.rc_yaw_pin, Script.GetParam('RC6_MIN'), Script.GetParam('RC6_MAX')]
     # ESC output [pin, min, max]
-    # esc_fr = [1, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_br = [2, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_bl = [3, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_fl = [4, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # - settings end -
+    # esc_fr = [esc_fr_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+    # esc_br = [esc_br_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+    # esc_bl = [esc_bl_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+    # esc_fl = [esc_fl_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
 
     # State variables:
     armed = False
@@ -238,8 +284,7 @@ class Move:
     # arm craft.  failsafes must pass.
     # pass: NA
     def arm_craft(self):
-        if self.verbose is True:
-            self.log.log_data("move class - arming motors")
+        self.log.log_data("move class - arming motors")
         self.change_mode_loiter()
         self.rc_reset_all()
         # left stick to bottom right.  throttle and yaw channels
@@ -254,8 +299,7 @@ class Move:
     # disarm motors (low power mode)
     # pass: NA
     def disarm_craft(self):
-        if self.verbose is True:
-            self.log.log_data("move class - disarming motors")
+        self.log.log_data("move class - disarming motors")
         self.change_mode_loiter()
         self.rc_reset_all()
         # left stick bottom left. throttle and yaw channels
@@ -269,37 +313,32 @@ class Move:
     # - rc end -
 
     # - waypoints begin -
-    # passing all (loc,lng,alt) values will send this waypoint to craft
-    # input: (int) latitude, (int) longitude, (int) altitude (units???)
+    # passing all ([loc,lng],alt) values will send this waypoint to craft
+    # input: [latitude, longitude], (int) altitude (units???)
     # pass: NA
-    def set_waypoint(self, loc_lat, loc_lng, loc_alt):
+    def set_waypoint(self, loc, loc_alt):
         # http://www.diydrones.com/forum/topics/mission-planner-python-script
         new_wp = MissionPlanner.Utilities.Locationwp()  # create waypoint object
-        MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp, loc_lat)  # set waypoint latitude
-        MissionPlanner.Utilities.Locationwp.lng.SetValue(new_wp, loc_lng)  # set waypoint longitude
+        MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp, loc[0])  # set waypoint latitude
+        MissionPlanner.Utilities.Locationwp.lng.SetValue(new_wp, loc[1])  # set waypoint longitude
         MissionPlanner.Utilities.Locationwp.alt.SetValue(new_wp, loc_alt)  # set waypoint altitude
         MAV.setGuidedModeWP(new_wp)  # begin waypoint
         # prints waypoint info.
-        if self.verbose is True:
-            self.log.log_data("waypoint set: lat:" + str(loc[0]) +
-                " lng:" + str(loc[1]) + " alt:" + str(loc[2]))
-
-    # returns True if distance to current waypoint minimum value 'waypoint_tolerance' is met
-    # pass: NA
-    def waypoint_complete(self):
-        if self.sen.current_distance < self.waypoint_tolerance:
-            return True
-        else:
-            return False
+        self.log.log_data("waypoint set: lat:" + str(loc[0]) +
+            " lng:" + str(loc[1]) + " alt:" + str(loc_alt))
 
     # waits for waypoint_complete() to finish
     # note: blocking functions.  could add timeout
     # pass: NA
     def wait_waypoint_complete(self):
-        while self.waypoint_complete() is True:
-            pass
-        if self.verbose is True:
-            self.log.log_data("move class - wait: waypoint complete")
+        self.log.log_data("move class - waiting for waypoint")
+        time.sleep(1)
+        flying_to_wp = True
+        while flying_to_wp:
+            self.sen.get_data()
+            if self.sen.current_distance < self.con.waypoint_tolerance:
+                flying_to_wp = False
+        self.log.log_data("move class - wait: waypoint complete: " + str(self.sen.current_distance))
     # - waypoints end -
 
     # - modes begin -
@@ -311,8 +350,15 @@ class Move:
         # MAV_CMD_NAV_LAND(0,0,0,0,l,l) - NODE: do not know if this command works
         Script.ChangeMode('LAND')  # set mode to LAND
         # http://copter.ardupilot.com/wiki/land-mode/
-        # test for landed
-        Script.WaitFor('LAND', 5000)
+    
+    def wait_for_land(self):
+        landing = True
+        while landing:
+            self.sen.get_data()
+            if self.sen.current_vertical_speed < 0.0 and self.sen.current_vertical_speed > -0.1:
+                landing = False
+        self.log.log_data("move class - wait: landing complete")
+        return True
 
     # change mode to loiter
     # info: hold position and altitude
@@ -320,6 +366,13 @@ class Move:
     def change_mode_loiter(self):
         Script.ChangeMode('LOITER')
         # Script.WaitFor('LOITER', 5000)  # whats this do?
+    
+    # change mode to guided
+    # info: 
+    # pass: NA
+    def change_mode_guided(self):
+        Script.ChangeMode('GUIDED')
+        # Script.WaitFor('GUIDED', 5000)
 
     # return to launch site and land
     # pass: NA
@@ -333,8 +386,8 @@ class Move:
     def change_mode_takeoff(self):
         pass
         '''
-        takeoff_alt = default_takeoff_alt
-        takeoff_speed = default_takeoff_speed
+        takeoff_alt = self.con.default_takeoff_alt
+        takeoff_speed = self.con.default_takeoff_speed
         # must do manually?
         self.log.log_data("begin takeoff procedure")
         temp_start_alt = self.sen.current_altitude
@@ -356,9 +409,9 @@ class Move:
             self.rc_set_value(rc_throttle, throttle_val)s
             #''
             # monitor vertical speed
-            if current_verticle_speed < takeoff_speed-2:
+            if current_vertical_speed < takeoff_speed-2:
                 throttle_val + 0.01
-            if current_verticle_speed > takeof_speed+2:
+            if current_vertical_speed > takeof_speed+2:
                 throttle_val - 0.01
             #''
             # update altitude
@@ -368,10 +421,17 @@ class Move:
     
     def check_ready(self):
         check_pass = True
+        # armed check
         self.sen.get_data()
-        if self.sen.current_armed is True:
+        if self.sen.current_armed and self.con.require_disarm:
             check_pass = False
-            self.log.log_data("move class - error: craft armed")
+            self.log.log_data("check_ready - error: craft armed")
+        # location check
+        if self.con.location == "dem": pass
+        else:
+            check_pass = False
+            self.log.log_data("check_ready - error: location not recognized")
+        # return
         return check_pass
 
     # setup motor code stuff
@@ -381,7 +441,7 @@ class Move:
             self.log.log_data("move class - error: check_ready() failed")
             return False
         ## self.rc_reset_all()
-        self.change_mode_loiter()
+        self.change_mode_guided()
         self.log.log_data("move class - setup complete")
         return True
 
@@ -394,6 +454,7 @@ class Testing:
     sen = Sensors()
     log = Logging()
     mov = Move()
+    con = Config()
 
     def __init__(self):
         pass
@@ -418,17 +479,13 @@ class Testing:
             time.sleep(1)
         self.log.log_data("testing class - test_senssors() complete")
 
-
     # test arm and disarm - optional disarm (not tested)
     def test_arm(self):
-        # - settings begin -
-        test_disarm = False
-        # - settings end - 
         # arm
         self.log.log_data("testing class - test_arm() begin")
         self.log.log_data("testing class - arming craft")
         self.mov.arm_craft()
-        if test_disarm is True:
+        if self.con.test_disarm is True:
             # print info user action
             self.log.log_data("testing class - note: flex throttle a bit to prevent auto disarm")
             self.log.log_data("testing class - disarming in 20 seconds")
@@ -443,25 +500,45 @@ class Testing:
     # test takeoff
     def test_takeoff(self):
         self.log.log_data("test_takeoff - begin")
-        # takeoff
-        self.log.log_data("test_takeoff - taking off")
-        self.mov.change_mode_takeoff()
+        if self.con.include_takeoff:
+            # takeoff
+            self.log.log_data("test_takeoff - taking off")
+            ## self.mov.change_mode_takeoff()
+        else:
+            self.log.log_data("test_takeoff - skip takeoff")
         # land
         self.log.log_data("test_takeoff - landing")
         self.mov.change_mode_landing()
+        self.mov.wait_for_land()
         self.log.log_data("test_takeoff - complete")
 
     # test waypoints
     def test_waypoints(self):
         self.log.log_data("test_waypoints - begin")
+        if self.con.include_takeoff:
+            pass
+            ## self.mov.change_mode_takeoff()
+        else:
+            self.log.log_data("test_waypoints - note: ensure craft is flying already")
+            self.log.log_data("test_waypoints - beggining in 6 seconds")
+            time.sleep(6)
         # move to waypoint 1
-        self.log.log_data("test_waypoints - move to waypoint one (1)")
-        ## self.mov.set_waypoint(...)
+        self.log.log_data("test_waypoints - move to waypoint one")
+        if self.con.location == "dem":
+            self.log.log_data("test_waypoints - demonte " + str(self.con.wp_1_index))
+            self.mov.set_waypoint(self.con.loc_dem[self.con.wp_1_index], self.con.testing_altitude)
+            self.mov.wait_waypoint_complete()
         # wp 2
-        self.log.log_data("test_waypoints - move to waypoint two (2)")
-        ## self.mov.set_waypoint(...)
-        # rtl..
-        self.mov.change_mode_rtl()
+        self.log.log_data("test_waypoints - move to waypoint two")
+        if self.con.location == "dem":
+            self.log.log_data("test_waypoints - demonte " + str(self.con.wp_2_index))
+            self.mov.set_waypoint(self.con.loc_dem[self.con.wp_2_index], self.con.testing_altitude)
+            self.mov.wait_waypoint_complete()
+        # rtl
+        if self.con.return_after:
+            self.log.log_data("test_waypoints - rtl and land")
+            self.mov.change_mode_rtl()
+            self.mov.wait_waypoint_complete()
         self.log.log_data("test_waypoints - complete")
 
 
@@ -477,37 +554,21 @@ class Mission:
     sen = Sensors()
     log = Logging()
     test = Testing()
+    con = Config()
 
-    # mission options:
-    # ----------------
-    # (0) no mission
-    # (t1) test arm and disarm - arms on ground, seconds later disarms.
-    # (t2) test takeoff and landing - goes up and lands at the same location.
-    # (t3) test waypoints - flys to a few waypoints, then rtl and land.  note: check waypoints locations and rtl land settings in MP.
-    # -----------------
-    # () test recovery (NI) - not implemented (This needs to be written and tested, possibly some research into decent at hight speed and needs to start in free-fall.)
-    # -----------------
-    # (ma-01) - mission_alpah - complete mission from idle, launch, recovery, navigation, and landling.
-    # -----------------
-
-    # - settings begin -
-    mission_mode = "t1"
-    # -----------------
-    verbose = True
-    log_data = True
-    # - settings end -
-
+    # state variables
     # [start, launch, eject, recover, land]
     start_time = [0, 0, 0, 0, 0]
     start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
     start_alt = [0, 0, 0, 0, 0]
-    # state variables
     landed = False
     mission_begin = False
     mission_complete = False
 
+    # init
     def __init__(self):
-        self.log.log_data("mission class - online")
+        if self.con.verbose:
+            self.log.log_data("mission class - online")
 
     # reset all variables
     def reset_values(self):
@@ -528,7 +589,8 @@ class Mission:
         self.start_time[0] = self.sen.current_time
         self.start_pos[0] = [self.sen.current_lat,  self.sen.current_lng]
         self.start_alt = self.sen.current_altitude
-        self.log.log_data("mission class - setup complete")
+        if self.con.verbose:
+            self.log.log_data("mission class - setup complete")
 
     # Mission Alpha 01 - ARLISS main mission run function
     def ma_01(self):
@@ -537,17 +599,17 @@ class Mission:
     # run mission
     def run_mission(self):
         self.log.log_data("mission class - running mission")
-        if (self.mission_mode == "0"):  # no mission
+        if (self.con.mission_mode == "0"):  # no mission
             self.log.log_data("mission class - no mission to run")
             self.log.log_data("mission class - exiting")
             return True
-        elif (self.mission_mode == "t1"):  # test arm / disarm
+        elif (self.con.mission_mode == "t1"):  # test arm / disarm
             self.test.test_arm()
-        elif (self.mission_mode == "t2"):  # test takeoff / landing
+        elif (self.con.mission_mode == "t2"):  # test takeoff / landing
             self.test.test_takeoff()
-        elif (self.mission_mode == "t3"):  # test waypoints
+        elif (self.con.mission_mode == "t3"):  # test waypoints
             self.test.test_waypoints()
-        elif (self.mission_mode == "ma-01"):
+        elif (self.con.mission_mode == "ma-01"):
             self.log.log_data("mission class - starting MissionAlpha-01")
             self.ma_01()
             self.log.log_data("mission class - mission complete")
@@ -570,14 +632,12 @@ class Mission:
 
 
 # autostart code
-# - settings begin-
-run_test = False
-# - settings end -
 log = Logging()
-if (run_test):
+con = Config()
+if (con.run_test):
     log.log_data("run_test begin")
     test = Testing()
-    ## test.test_filelog()  # option
+    test.test_filelog()  # option
     test.test_sensors()  # option
     log.log_data("run_test complete")
 else:
