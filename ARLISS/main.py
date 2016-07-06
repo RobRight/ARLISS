@@ -37,7 +37,7 @@ class Config:
     # land
     desired_vert_speed = -0.2 # once vs here. landed
     # waypoints
-    waypoint_tolerance = 2  # m ??
+    waypoint_tolerance = 5  # m ??
     ## custom_path = [0,1,2,3,4,5,6,7,8,9,10]
     # ---------------------------
     # - testing class -
@@ -69,6 +69,9 @@ class Config:
     esc_fl_pin = 0
     # ---------------------------
     # locations: [latitude, longitude]
+    # random
+    loc_rand_unr = [39.550409, -119.809378]  # UNR
+    loc_rand_tahoe = [39.221711, -119.928340]  # Lake Tahoe
     # demonte rance
     loc_dem = [
         [39.415847, -119.734851],  # 0
@@ -325,9 +328,40 @@ class Move:
         self.armed = False
         return True
     # - rc end -
-    
-    # input: loc: [lat, lon], dist: distance in meters, dir: direction in degrees
-    def generate_location(self, loc, dist, dir):
+
+    # - waypoints begin -
+    # returns the distance between two locations
+    # input: start_loc: [lat, lon], end_loc: [lat, lon]
+    def calc_distance(self, start_loc, end_loc):
+        R=6378137
+        # Haversine Formula
+        dlat = end_loc[0] - start_loc[0]
+        dlon = end_loc[1] - start_loc[1]
+        a = math.pow(math.sin(dlat/2), 2)+math.cos(start_loc[0])*math.cos(end_loc[0])*math.pow(math.sin(dlon/2), 2)
+        c = 2 * math.atan2(math.sqrt(a),math.sqrt(1-a)) 
+        d = R * c
+        return d
+
+    #
+    #
+    # http://www.movable-type.co.uk/scripts/latlong.html
+    def calc_direction_to(self, start_loc, end_loc):
+        start_lat = math.radians(start_loc[0])
+        start_lon = math.radians(start_loc[1])
+        end_lat = math.radians(end_loc[0])
+        end_lon = math.radians(end_loc[1])
+        
+        dl = end_lon-start_lon
+        x = math.sin(dl)*math.cos(end_lat)
+        y = math.cos(start_lat)*math.sin(end_lat)-math.sin(start_lat)*math.cos(end_lat)*math.cos(dl)
+        b = math.degrees(math.atan2(x, y))
+        bn = (b+360) % 360
+        return bn
+
+    # returns new location [lat, lon] given current location, displacement and direction
+    # input: start_loc: [lat, lon], dist: distance in meters, dir: direction in degrees
+    # http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters
+    def generate_location(self, start_loc, dist, dir):
         # Earths radius, sphere
         R=6378137
         # offsets in meters
@@ -335,13 +369,12 @@ class Move:
         de = dist*math.sin(math.radians(dir))
         # coordinate offsets in radians
         dLat = dn/R
-        dLon = de/(R*math.cos(math.pi*loc[0]/180))
+        dLon = de/(R*math.cos(math.pi*start_loc[0]/180))
         # offsetPosition, decimal degrees
-        new_lat = loc[0] + dLat * 180/math.pi
-        new_lon = loc[1] + dLon * 180/math.pi
+        new_lat = start_loc[0] + dLat * 180/math.pi
+        new_lon = start_loc[1] + dLon * 180/math.pi
         return new_lat, new_lon
 
-    # - waypoints begin -
     # passing all ([loc,lng],alt) values will send this waypoint to craft
     # input: [latitude, longitude], (int) altitude (units???)
     # pass: NA
@@ -352,7 +385,7 @@ class Move:
         MissionPlanner.Utilities.Locationwp.lng.SetValue(new_wp, loc[1])  # set waypoint longitude
         MissionPlanner.Utilities.Locationwp.alt.SetValue(new_wp, loc_alt)  # set waypoint altitude
         MAV.setGuidedModeWP(new_wp)  # begin waypoint
-        # prints waypoint info.
+        # logs waypoint info
         self.log.log_data("waypoint set: lat:" + str(loc[0]) +
             " lng:" + str(loc[1]) + " alt:" + str(loc_alt))
 
@@ -369,6 +402,51 @@ class Move:
                 flying_to_wp = False
         self.log.log_data("move class - wait: waypoint complete: " + str(self.sen.current_distance))
         return True
+
+    # 
+    # input: target: [lat, lon], target_alt: target altitude
+    # note: add types like directional or decent
+    def navigation_manager(self, target, target_alt):
+        self.log.log_data("move class - navigation start")
+        # - settings start -
+        distance_complete = 10  # complete once this close
+        jump_distance = 400  # distance to jump
+        jump_alt = 100  # verticle distance to jump
+        # - settings end -
+        self.sen.get_data()
+        total_dist = self.calc_distance([self.sen.current_lat, self.sen.current_lng], target)
+        total_alt = math.fabs(self.sen.current_altitude - target_alt)
+        nav_complete = False
+        while nav_complete == False:
+            self.sen.get_data()
+            current_loc = [self.sen.current_lat, self.sen.current_lng]
+            current_alt = self.sen.current_altitude
+            remaining_dist = self.calc_distance(current_loc, target)
+            self.log.log_data("move class - navigation: distance: " + str(remaining_dist))
+            # within range of target
+            if remaining_dist < distance_complete:
+                nav_complete = True
+            # find next alt
+            if current_alt > (target_alt + jump_alt):
+                # jump altitude
+                temp_alt = (current_alt - jump_alt)
+            else:
+                # at target altitude
+                temp_alt = target_alt
+            # find next loc
+            if remaining_dist > jump_distance:
+                # find next jump location
+                temp_dir = self.calc_direction_to(current_loc, target)
+                print(str(temp_dir))
+                temp_jump_loc = self.generate_location(current_loc, jump_distance, temp_dir)
+            else:
+                # next jump is target
+                temp_jump_loc = target
+            # fly to target
+            self.log.log_data("move class - navigation: next waypoint")
+            self.set_waypoint(temp_jump_loc, temp_alt)
+            self.wait_waypoint_complete()
+        self.log.log_data("move class - navigation complete")
     # - waypoints end -
 
     # - modes begin -
@@ -378,7 +456,7 @@ class Move:
     def change_mode_landing(self):
         Script.ChangeMode('LAND')  # set mode to LAND
         # http://copter.ardupilot.com/wiki/land-mode/
-    
+
     # waits for landing based on verticle speed
     # note: blocking function. could add timeout
     # pass: NA
@@ -404,7 +482,7 @@ class Move:
     def change_mode_loiter(self):
         Script.ChangeMode('LOITER')
         # Script.WaitFor('LOITER', 5000)  # whats this do?
-    
+
     # change mode to guided
     # info: 
     # pass: NA
@@ -436,7 +514,7 @@ class Move:
         time.sleep(1)
         taking_off = True
         self.log.log_data("move class - going up")
-        self.log.log_data("move class - waiting for altitiude")
+        self.log.log_data("move class - waiting for altitude")
         # maintain until at set altitude
         while taking_off:
             self.sen.get_data()
@@ -455,7 +533,7 @@ class Move:
         self.rc_reset_all()
         self.log.log_data("move class - takeoff complete")
     # - modes end -
-    
+
     def check_ready(self):
         check_pass = True
         # armed check
@@ -679,11 +757,9 @@ class Mission:
 log = Logging()
 con = Config()
 
-mov = Move()
-val1, val2 = mov.generate_location(con.loc_dem[0], 20, 90)
-print(val1)
-print(val2)
-'''
+# mov = Move()
+# mov.navigation_manager(con.loc_rand_unr, 20)
+
 if (con.run_test):
     log.log_data("run_test begin")
     test = Testing()
@@ -698,4 +774,3 @@ else:
     mission.autorun()
     log.log_data("---------------")
     log.log_data("script complete")
-'''
