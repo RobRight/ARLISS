@@ -30,26 +30,33 @@ class Config:
     location = "dem"
     run_test = False # sensor and file testing
     require_disarm = False
+    # takeoff
+    takeoff_throttle_val = 0.8
+    default_takeoff_alt = 20  # m ??
+    default_takeoff_speed = 2  # m/s ??
+    # land
+    desired_vert_speed = -0.1 # once vs here. landed
+    # waypoints
+    waypoint_tolerance = 2  # m ??
     ## custom_path = [0,1,2,3,4,5,6,7,8,9,10]
     # ---------------------------
     # - testing class -
     # test_arm function
     test_disarm = False  # not implemented
     # test_waypoints function
-    include_takeoff = False  # also test_takeoff --
+    include_takeoff = True  # also test_takeoff --
     testing_altitude = 30  # units
     wp_1_index = 2  # test_waypoint loc 1
     wp_2_index = 5
     return_after = True
+    # test takeoff
+    hold_position_time = 10
     # - logging class -
     log_enable = True  # enable file logging
     print_enable = True  # enable console logging
     default_name = "log_file"  # file log filename prefix
     # - move class -
     # min distance from waypoint before moving on
-    waypoint_tolerance = 2  # m ??
-    default_takeoff_alt = 20  # m ??
-    default_takeoff_speed = 2  # m/s ??
     # rc pins
     rc_throttle_pin = 3
     rc_pitch_pin = 2
@@ -289,7 +296,10 @@ class Move:
         self.rc_reset_all()
         # left stick to bottom right.  throttle and yaw channels
         self.rc_set_all(0, -1, -1, 1)
-        Script.WaitFor('ARMING MOTORS', 5000)
+        temp_armed = False
+        while temp_armed is False:
+            self.sen.get_data()
+            temp_armed = self.sen.current_armed
         self.rc_reset_all()
         ## if (self.verbose):
         self.log.log_data("move class - motors armed")
@@ -304,7 +314,11 @@ class Move:
         self.rc_reset_all()
         # left stick bottom left. throttle and yaw channels
         self.rc_set_all(0, -1, -1, 0)
-        Script.WaitFor('DISARMING MOTORS', 5000)
+        temp_armed = True
+        while temp_armed is True:
+            self.sen.get_data()
+            temp_armed = self.sen.current_armed
+        self.rc_reset_all()
         self.rc_reset_all()
         ## if (self.verbose):
         self.log.log_data("move class - motors disarmed")
@@ -339,25 +353,29 @@ class Move:
             if self.sen.current_distance < self.con.waypoint_tolerance:
                 flying_to_wp = False
         self.log.log_data("move class - wait: waypoint complete: " + str(self.sen.current_distance))
+        return True
     # - waypoints end -
 
     # - modes begin -
     # engage landing
     # do not return until landing complete or timeout
-    # pass: NA
+    # pass: yes
     def change_mode_landing(self):
-        # http://copter.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/#mav_cmd_nav_land
-        # MAV_CMD_NAV_LAND(0,0,0,0,l,l) - NODE: do not know if this command works
         Script.ChangeMode('LAND')  # set mode to LAND
         # http://copter.ardupilot.com/wiki/land-mode/
     
+    # waits for landing based on verticle speed
+    # note: blocking function. could add timeout
+    # pass: NA
     def wait_for_land(self):
+        self.log.log_data("move class - waiting for land")
+        time.sleep(2)
         landing = True
         while landing:
             self.sen.get_data()
-            if self.sen.current_vertical_speed < 0.0 and self.sen.current_vertical_speed > -0.1:
+            if self.sen.current_vertical_speed < 0.0 and self.sen.current_vertical_speed > self.con.desired_vert_speed:
                 landing = False
-        self.log.log_data("move class - wait: landing complete")
+        self.log.log_data("move class - landing complete")
         return True
 
     # change mode to loiter
@@ -382,14 +400,11 @@ class Move:
 
     # takeoff for testing and non-assisted flying
     # do not return until takeoff completes or timeout
+    # note: desired vs is 2
     # pass: NA - not ready
     def change_mode_takeoff(self):
-        pass
-        '''
-        takeoff_alt = self.con.default_takeoff_alt
-        takeoff_speed = self.con.default_takeoff_speed
-        # must do manually?
-        self.log.log_data("begin takeoff procedure")
+        self.log.log_data("move class - begin takeoff")
+        self.sen.get_data()
         temp_start_alt = self.sen.current_altitude
         # arm
         self.arm_craft()
@@ -397,26 +412,28 @@ class Move:
         self.change_mode_loiter()
         # engage motors; warmup then throttle at 80%
         self.rc_reset_all()
-        self.rc_set_all(0.15,-1,-1,-1)
+        self.rc_set_value(self.rc_throttle, self.con.takeoff_throttle_val)
         time.sleep(1)
-
-        throttle_val = 0.8
-        temp_current_alt = self.sen.current_altitude
+        taking_off = True
+        self.log.log_data("move class - going up")
+        self.log.log_data("move class - waiting for altitiude")
         # maintain until at set altitude
-        while temp_current_alt < temp_start_alt + takeoff_alt:
-            # set throttle
-            #self.rc_set_all(throttle,-1,-1,-1)
-            self.rc_set_value(rc_throttle, throttle_val)s
-            #''
+        while taking_off:
+            self.sen.get_data()
             # monitor vertical speed
-            if current_vertical_speed < takeoff_speed-2:
-                throttle_val + 0.01
-            if current_vertical_speed > takeof_speed+2:
-                throttle_val - 0.01
-            #''
+            if self.sen.current_vertical_speed < self.con.default_takeoff_speed:
+                self.con.takeoff_throttle_val + 0.01
+            if self.sen.current_vertical_speed > self.con.default_takeoff_speed+1:
+                self.con.takeoff_throttle_val - 0.01
+            # set throttle
+            self.rc_set_value(self.rc_throttle, self.con.takeoff_throttle_val)
             # update altitude
-            temp_current_alt = self.sen.current_altitude
-        '''
+            if self.sen.current_altitude > (temp_start_alt + self.con.default_takeoff_alt):
+                taking_off = False
+        self.change_mode_guided()
+        self.set_waypoint([self.sen.current_lat, self.sen.current_lng], self.con.default_takeoff_alt)
+        self.rc_reset_all()
+        self.log.log_data("move class - takeoff complete")
     # - modes end -
     
     def check_ready(self):
@@ -503,7 +520,10 @@ class Testing:
         if self.con.include_takeoff:
             # takeoff
             self.log.log_data("test_takeoff - taking off")
-            ## self.mov.change_mode_takeoff()
+            self.mov.change_mode_takeoff()
+            self.log.log_data("test_takeoff - wait " + str(self.con.hold_position_time) + " seconds")
+            time.sleep(self.con.hold_position_time)
+            self.log.log_data("move class - takeoff complete")
         else:
             self.log.log_data("test_takeoff - skip takeoff")
         # land
@@ -516,8 +536,8 @@ class Testing:
     def test_waypoints(self):
         self.log.log_data("test_waypoints - begin")
         if self.con.include_takeoff:
-            pass
-            ## self.mov.change_mode_takeoff()
+            self.log.log_data("test_waypoints - taking off")
+            self.mov.change_mode_takeoff()
         else:
             self.log.log_data("test_waypoints - note: ensure craft is flying already")
             self.log.log_data("test_waypoints - beggining in 6 seconds")
@@ -617,7 +637,7 @@ class Mission:
             self.log.log_data("mission class - error: mission_mode unknown in run_mission()")
             self.log.log_data("mission class - run_mission() failed")
             return False  # exit
-        self.log.log_data("mission class - run_mission() complete")
+        self.log.log_data("mission class - mission complete")
         return True
 
     def autorun(self):
