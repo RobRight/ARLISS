@@ -1,3 +1,10 @@
+# 
+# ARLISS Mission Script
+# 
+# 7/1/2016 to current
+# http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
+# 
+
 import math  # math
 import os  # log file path
 import time  # sleep and current time
@@ -7,7 +14,7 @@ clr.AddReference("MissionPlanner.Utilities")
 clr.AddReference("MAVLink")  # includes the Utilities class
 import MissionPlanner
 from MissionPlanner.Utilities import Locationwp
-import MAVLink
+import MAVLink  # needed?
 
 # mission options:
 # -----------------
@@ -26,10 +33,14 @@ import MAVLink
 class Config:
     # - general settings -
     verbose = True
-    mission_mode = "t2"
+    mission_mode = "t1"
     location = "dem"
     run_test = False # sensor and file testing
     require_disarm = False
+    # navigation
+    distance_complete = 10  # complete once this close
+    jump_distance = 400  # distance to jump
+    jump_alt = 100  # verticle distance to jump
     # takeoff
     takeoff_throttle_val = 0.8
     default_takeoff_alt = 20  # m ??
@@ -408,11 +419,6 @@ class Move:
     # note: add types like directional or decent
     def navigation_manager(self, target, target_alt):
         self.log.log_data("move class - navigation start")
-        # - settings start -
-        distance_complete = 10  # complete once this close
-        jump_distance = 400  # distance to jump
-        jump_alt = 100  # verticle distance to jump
-        # - settings end -
         self.sen.get_data()
         total_dist = self.calc_distance([self.sen.current_lat, self.sen.current_lng], target)
         total_alt = math.fabs(self.sen.current_altitude - target_alt)
@@ -423,25 +429,25 @@ class Move:
             current_alt = self.sen.current_altitude
             remaining_dist = self.calc_distance(current_loc, target)
             self.log.log_data("move class - navigation: distance: " + str(remaining_dist))
-            # within range of target
-            if remaining_dist < distance_complete:
-                nav_complete = True
             # find next alt
-            if current_alt > (target_alt + jump_alt):
+            if current_alt > (target_alt + self.con.jump_alt):
                 # jump altitude
-                temp_alt = (current_alt - jump_alt)
+                temp_alt = (current_alt - self.con.jump_alt)
             else:
                 # at target altitude
                 temp_alt = target_alt
             # find next loc
-            if remaining_dist > jump_distance:
+            if remaining_dist > self.con.jump_distance:
                 # find next jump location
                 temp_dir = self.calc_direction_to(current_loc, target)
                 print(str(temp_dir))
-                temp_jump_loc = self.generate_location(current_loc, jump_distance, temp_dir)
+                temp_jump_loc = self.generate_location(current_loc, self.con.jump_distance, temp_dir)
             else:
                 # next jump is target
                 temp_jump_loc = target
+            # within range of target
+            if remaining_dist < self.con.distance_complete:
+                nav_complete = True
             # fly to target
             self.log.log_data("move class - navigation: next waypoint")
             self.set_waypoint(temp_jump_loc, temp_alt)
