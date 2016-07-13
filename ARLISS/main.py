@@ -22,7 +22,7 @@ import MAVLink  # needed?
 # (t1) test arm and disarm - arms on ground, seconds later disarms.
 # (t2) test takeoff and landing - goes up and lands at the same location.
 # (t3) test waypoints - flys to a few waypoints, then rtl and land
-# (t4) (NI) test recovery (NI) - not implemented
+# (t4) test recovery - check settings in config class
 # (ma-01) - mission_alpah - complete mission from idle, launch, recovery, navigation, and landling.
 
 # location options:
@@ -33,7 +33,7 @@ import MAVLink  # needed?
 class Config:
     # - general settings -
     verbose = True
-    mission_mode = "t1"
+    mission_mode = "t4"
     location = "dem"
     run_test = False # sensor and file testing
     require_disarm = False
@@ -41,6 +41,10 @@ class Config:
     distance_complete = 10  # complete once this close
     jump_distance = 400  # distance to jump
     jump_alt = 100  # verticle distance to jump
+    # recovery
+    recover_arm = False  # testing - already in flight
+    wait_recov = False  # not ready
+    flyto_recover = True  # fly to recover location
     # takeoff
     takeoff_throttle_val = 0.8
     default_takeoff_alt = 20  # m ??
@@ -55,13 +59,19 @@ class Config:
     # test_arm function
     test_disarm = False  # not implemented
     # test_waypoints function
-    include_takeoff = True  # also test_takeoff --
+    include_takeoff_wp = True
     testing_altitude = 30  # units
     wp_1_index = 2  # test_waypoint loc 1
     wp_2_index = 5
     return_after = True
     # test takeoff
+    include_takeoff_t = True
     hold_position_time = 10
+    # test recovery
+    takeoff_before_recover = False
+    flyto_recover = True
+    recover_test_sleep = 3
+    fly_back_home = True
     # - logging class -
     log_enable = True  # enable file logging
     print_enable = True  # enable console logging
@@ -69,7 +79,7 @@ class Config:
     # - move class -
     # min distance from waypoint before moving on
     # rc pins
-    rc_throttle_pin = 3
+    rc_throttle_pin = 4
     rc_pitch_pin = 2
     rc_roll_pin = 1
     rc_yaw_pin = 4
@@ -489,6 +499,9 @@ class Move:
         Script.ChangeMode('LOITER')
         # Script.WaitFor('LOITER', 5000)  # whats this do?
 
+    def change_mode_stabilize(self):
+        Script.ChangeMode('STABILIZE')
+
     # change mode to guided
     # info: 
     # pass: NA
@@ -571,6 +584,37 @@ class Move:
         return True
 
 
+class Rocket:
+    sen = Sensors()
+    mov = Move()
+    log = Logging()
+
+    def __init__(self):
+        pass
+
+    def detect_launch(self):
+        pass  # check acceleromiter or alitude
+
+    def detect_ejection(self):
+        pass  # check acceleromiter or alitude
+
+    def wait_for_recover(self):
+        self.log.log_data("mission class - wait for recovery")
+        # check sensors
+        # if level wait a few seconds
+        self.log.log_data("mission class - craft recovered")
+
+    def recover(self):
+        # assumed terminal velocity: 35 to 40 m/s
+        self.log.log_data("mission class - recovery start")
+        if (self.con.recover_arm):
+            self.mov.arm_craft()
+        self.mov.change_mode_stabilize()
+        if (self.con.wait_recov):
+            self.wait_for_recover()
+        self.log.log_data("mission_clas - recovery complete")
+
+
 #
 # Testing class
 # ------------------------------------------------------
@@ -580,6 +624,7 @@ class Testing:
     log = Logging()
     mov = Move()
     con = Config()
+    rok = Rocket()
 
     def __init__(self):
         pass
@@ -625,7 +670,7 @@ class Testing:
     # test takeoff
     def test_takeoff(self):
         self.log.log_data("test_takeoff - begin")
-        if self.con.include_takeoff:
+        if self.con.include_takeoff_t:
             # takeoff
             self.log.log_data("test_takeoff - taking off")
             self.mov.change_mode_takeoff()
@@ -643,7 +688,7 @@ class Testing:
     # test waypoints
     def test_waypoints(self):
         self.log.log_data("test_waypoints - begin")
-        if self.con.include_takeoff:
+        if self.con.include_takeoff_wp:
             self.log.log_data("test_waypoints - taking off")
             self.mov.change_mode_takeoff()
         else:
@@ -668,6 +713,28 @@ class Testing:
             self.mov.change_mode_rtl()
             self.mov.wait_waypoint_complete()
         self.log.log_data("test_waypoints - complete")
+
+    def test_recovery(self):
+        self.log.log_data("test_recovery - begin")
+        if (self.con.location != "dem"):  # location check
+            self.log.log_data("test_recovery - location error")
+            return False
+        if (self.con.takeoff_before_recover):  # takeoff
+            self.move.change_mode_takeoff()
+        if (self.con.flyto_recover):
+            self.log.log_data("test_recovery - flying to start position")
+            self.mov.set_waypoint(self.con.loc_dem[5])  # recovery location
+            self.mov.wait_waypoint_complete()
+        self.log.log_data("test_recovery - disableing craft")
+        self.mov.rc_reset_all()
+        self.mov.rc_set_value(self.move.rc_throttle, 0)  # cut throttle; could disarm and re-arm??
+        time.sleep(recover_test_sleep)  # wait
+        self.log.log_data("test_recovery - starting recovery")
+        self.rok.recover()
+        if (self.con.fly_back_home):
+            self.log.log_data("test_recovery - flying back")
+            self.move.navigation_manager(self.con.loc_dem, 20)
+            self.move.change_mode_landing()
 
 
 #
@@ -737,6 +804,8 @@ class Mission:
             self.test.test_takeoff()
         elif (self.con.mission_mode == "t3"):  # test waypoints
             self.test.test_waypoints()
+        elif (self.con.mission_mode == "t4"):  # test recovery
+            self.test.test_recovery()
         elif (self.con.mission_mode == "ma-01"):
             self.log.log_data("mission class - starting MissionAlpha-01")
             self.ma_01()
