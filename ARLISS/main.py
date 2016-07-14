@@ -145,7 +145,8 @@ class Logging:
         if self.con.log_enable:
             filename = self.generate_filename(self.con.default_name)
             f = open(filename, 'a')
-            f.write(in_data + "\n")
+			current_time = time.strftime("%H_%M_%S", time.localtime())
+            f.write(current_time + in_data + "\n")
             f.close()
         if self.con.print_enable is True:
             print(in_data)
