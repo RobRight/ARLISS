@@ -1,0 +1,28 @@
+Information about ArduPilot (copter) python commands:
+--------------------------------------------------------------------------------------
+
+cs.x
+-----------
+- example: mode, armed, etc.
+- more info here: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
+
+Script.x
+-----------
+Script.ChangeParam(name,value) - change a parameter value
+Script.GetParam(name) - read a parameter value
+- copter parameters: http://ardupilot.org/copter/docs/parameters.html
+
+Script.ChangeMode(mode)
+- copter modes: http://ardupilot.org/copter/docs/flight-modes.html
+
+Script.SendRC(channel,pwm,sendnow) - set RC channel to value
+
+Script.WaitFor(string,timeout) - (not tested)
+
+MAV.x
+-----------
+MAV.doCommand(command);  - MAVLink Mission Command Messages (not tested)
+-command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/
+
+Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))
+

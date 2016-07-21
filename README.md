@@ -23,7 +23,7 @@ website: http://robright.github.io/ARLISS/
 
  -------------------------------------------------------------------------------------- <br />
 
-## Useful Links:
+## Useful Links: (posibly outdated)
 
  -------------------------------------------------------------------------------------- <br />
 wayoints from code: http://diydrones.com/forum/topics/how-to-python-script-a-time-based-flight-plan <br />
@@ -48,28 +48,35 @@ SITL: http://ardupilot.org/dev/docs/sitl-simulator-software-in-the-loop.html <br
 
 ## Python Reference:
 
- Information about ArduPilot python commands: <br />
+Information about ArduPilot (copter) python commands:<br />
+--------------------------------------------------------------------------------------<br />
+<br />
+cs.x<br />
+-----------<br />
+- example: mode, armed, etc.<br />
+- more info here: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
+<br />
+Script.x<br />
+-----------<br />
+Script.ChangeParam(name,value) - change a parameter value<br />
+Script.GetParam(name) - read a parameter value<br />
+- copter parameters: http://ardupilot.org/copter/docs/parameters.html<br />
+<br />
+Script.ChangeMode(mode)<br />
+- copter modes: http://ardupilot.org/copter/docs/flight-modes.html<br />
+<br />
+Script.SendRC(channel,pwm,sendnow) - set RC channel to value<br />
+<br />
+Script.WaitFor(string,timeout) - (not tested)<br />
+<br />
+MAV.x<br />
+-----------<br />
+MAV.doCommand(command);  - MAVLink Mission Command Messages (not tested)<br />
+-command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/<br />
+<br />
+Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))<br />
  -------------------------------------------------------------------------------------- <br />
- cs.???? = currentstate, any variable on the status tab in the planner can be used. <br />
- -some varialbes: roll, pitch, yaw, lat, lng, groundcourse, alt, groundspeed, wp_dist, wpno, mode, armed, battery_remaining <br />
- -more info here: http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/ <br />
  <br />
- Script.???? <br />
- Script.Sleep(ms) - sleep time in milliseconds <br />
- Script.ChangeParam(name,value) - change a parameter value <br />
- Script.GetParam(name) - read a parameter value <br />
- -parameter list here: http://plane.ardupilot.com/wiki/arduplane-parameters/ <br />
- Script.ChangeMode(mode) - ex. AUTO, RTL, AUTO, FBWA, FBWB, LOITER <br />
- -mode list here: http://plane.ardupilot.com/wiki/flight-modes/ <br />
- Script.WaitFor(string,timeout) <br />
- Script.SendRC(channel,pwm,sendnow) - set servo to pos ition <br />
- <br />
- MAV.doCommand(command);  - MAVLink Mission Command Messages <br />
- -command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/ <br />
- <br />
- RC Input and Output values - http://dev.ardupilot.com/wiki/learning-ardupilot-rc-input-output/ <br />
- -------------------------------------------------------------------------------------- <br />
- 
  
 ## Code Example:
 

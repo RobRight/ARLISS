@@ -3,7 +3,14 @@
 # 
 # 7/1/2016 to current
 # http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
+#
+# ToDo:
+# - disable GPS before and during launch
+# - detect launch (barometer, acclerameter)
+# - detect rocket ejection (accelerometer, altitude, vertical speed)
+# - parameter manage function (PIDs, GPS, Failsafes)
 # 
+
 
 import math  # math
 import os  # log file path
@@ -245,12 +252,12 @@ class Sensors:
         self.log.log_data("")
 
 
-# Move class
+# Craft class
 # ------------------------------------------------------
 # waypoints, land, arm/disarm
 # note: need loiter function; check channel mappings
 #
-class Move:
+class Craft:
     sen = Sensors()
     log = Logging()
     con = Config()
@@ -326,7 +333,6 @@ class Move:
             self.sen.get_data()
             temp_armed = self.sen.current_armed
         self.rc_reset_all()
-        ## if (self.verbose):
         self.log.log_data("move class - motors armed")
         self.armed = True
         return True
@@ -345,7 +351,6 @@ class Move:
             temp_armed = self.sen.current_armed
         self.rc_reset_all()
         self.rc_reset_all()
-        ## if (self.verbose):
         self.log.log_data("move class - motors disarmed")
         self.armed = False
         return True
@@ -555,6 +560,24 @@ class Move:
         self.rc_reset_all()
         self.log.log_data("move class - takeoff complete")
     # - modes end -
+	
+	# - parameters -
+	def params_setup(self):
+		pass
+
+	# gps param enable and disable (True to enable)
+	def params_gps(self, in_en):
+		if in_en:
+			pass
+			# enable gps
+		else:
+			pass
+			# disable gps
+	
+	# params setup failsafes
+	def params_failsafe_setup(self):
+		pass
+	# - parameters end - 
 
     def check_ready(self):
         check_pass = True
@@ -589,7 +612,7 @@ class Move:
 
 class Rocket:
     sen = Sensors()
-    mov = Move()
+    cra = Craft()
     log = Logging()
     con = Config()
 
@@ -613,13 +636,13 @@ class Rocket:
         # assumed terminal velocity: 35 to 40 m/s
         self.log.log_data("mission class - recovery start")
         if (self.con.recover_arm):
-            self.mov.arm_craft()
-        self.mov.change_mode_stabilize()
-        self.mov.rc_set_value(self.mov.rc_throttle, 0.8)
+            self.cra.arm_craft()
+        self.cra.change_mode_stabilize()
+        self.cra.rc_set_value(self.cra.rc_throttle, 0.8)
         time.sleep(1)
-        self.mov.change_mode_loiter()
+        self.cra.change_mode_loiter()
         self.sen.get_data()
-        self.mov.set_waypoint([self.sen.current_lat, self.sen.current_lng], (self.sen.current_altitude-10))
+        self.cra.set_waypoint([self.sen.current_lat, self.sen.current_lng], (self.sen.current_altitude-10))
         if (self.con.wait_recov):
             ## testing only
             self.sen.get_data()
@@ -640,7 +663,7 @@ class Rocket:
 class Testing:
     sen = Sensors()
     log = Logging()
-    mov = Move()
+    cra = Craft()
     con = Config()
     rok = Rocket()
 
@@ -672,7 +695,7 @@ class Testing:
         # arm
         self.log.log_data("testing class - test_arm() begin")
         self.log.log_data("testing class - arming craft")
-        self.mov.arm_craft()
+        self.cra.arm_craft()
         if self.con.test_disarm is True:
             # print info user action
             self.log.log_data("testing class - note: flex throttle a bit to prevent auto disarm")
@@ -682,7 +705,7 @@ class Testing:
             time.sleep(4)
             # disarm
             self.log.log_data("testing class - disarming craft")
-            self.mov.disarm_craft()
+            self.cra.disarm_craft()
             self.log.log_data("testing class - test_arm() complete")
 
     # test takeoff
@@ -691,7 +714,7 @@ class Testing:
         if self.con.include_takeoff_t:
             # takeoff
             self.log.log_data("test_takeoff - taking off")
-            self.mov.change_mode_takeoff()
+            self.cra.change_mode_takeoff()
             self.log.log_data("test_takeoff - wait " + str(self.con.hold_position_time) + " seconds")
             time.sleep(self.con.hold_position_time)
             self.log.log_data("move class - takeoff complete")
@@ -699,8 +722,8 @@ class Testing:
             self.log.log_data("test_takeoff - skip takeoff")
         # land
         self.log.log_data("test_takeoff - landing")
-        self.mov.change_mode_landing()
-        self.mov.wait_for_land()
+        self.cra.change_mode_landing()
+        self.cra.wait_for_land()
         self.log.log_data("test_takeoff - complete")
 
     # test waypoints
@@ -708,7 +731,7 @@ class Testing:
         self.log.log_data("test_waypoints - begin")
         if self.con.include_takeoff_wp:
             self.log.log_data("test_waypoints - taking off")
-            self.mov.change_mode_takeoff()
+            self.cra.change_mode_takeoff()
         else:
             self.log.log_data("test_waypoints - note: ensure craft is flying already")
             self.log.log_data("test_waypoints - beggining in 6 seconds")
@@ -717,19 +740,19 @@ class Testing:
         self.log.log_data("test_waypoints - move to waypoint one")
         if self.con.location == "dem":
             self.log.log_data("test_waypoints - demonte " + str(self.con.wp_1_index))
-            self.mov.set_waypoint(self.con.loc_dem[self.con.wp_1_index], self.con.testing_altitude)
-            self.mov.wait_waypoint_complete()
+            self.cra.set_waypoint(self.con.loc_dem[self.con.wp_1_index], self.con.testing_altitude)
+            self.cra.wait_waypoint_complete()
         # wp 2
         self.log.log_data("test_waypoints - move to waypoint two")
         if self.con.location == "dem":
             self.log.log_data("test_waypoints - demonte " + str(self.con.wp_2_index))
-            self.mov.set_waypoint(self.con.loc_dem[self.con.wp_2_index], self.con.testing_altitude)
-            self.mov.wait_waypoint_complete()
+            self.cra.set_waypoint(self.con.loc_dem[self.con.wp_2_index], self.con.testing_altitude)
+            self.cra.wait_waypoint_complete()
         # rtl
         if self.con.return_after:
             self.log.log_data("test_waypoints - rtl and land")
-            self.mov.change_mode_rtl()
-            self.mov.wait_waypoint_complete()
+            self.cra.change_mode_rtl()
+            self.cra.wait_waypoint_complete()
         self.log.log_data("test_waypoints - complete")
 
     # test recovery
@@ -739,30 +762,30 @@ class Testing:
             self.log.log_data("test_recovery - location error")
             return False
         if (self.con.takeoff_before_recover):  # takeoff
-            self.mov.change_mode_takeoff()
+            self.cra.change_mode_takeoff()
         if (self.con.flyto_recover):
             self.log.log_data("test_recovery - flying to start position")
-            self.mov.set_waypoint(self.con.loc_dem[5], self.con.test_recover_start_alt)  # recovery location
-            self.mov.wait_waypoint_complete()
+            self.cra.set_waypoint(self.con.loc_dem[5], self.con.test_recover_start_alt)  # recovery location
+            self.cra.wait_waypoint_complete()
         self.log.log_data("test_recovery - disableing craft")
-        self.mov.change_mode_stabilize()
-        self.mov.rc_set_value(self.mov.rc_throttle, 0.5)
+        self.cra.change_mode_stabilize()
+        self.cra.rc_set_value(self.cra.rc_throttle, 0.5)
         time.sleep(1)
-        self.mov.rc_reset_all()  # cut throttle
+        self.cra.rc_reset_all()  # cut throttle
         if (self.con.recover_arm):
-            self.mov.disarm_craft()  # disarm
+            self.cra.disarm_craft()  # disarm
         time.sleep(self.con.recover_test_sleep)  # wait
         self.log.log_data("test_recovery - starting recovery")
         self.rok.recover()  # recover
         if (self.con.fly_back_home):
             self.log.log_data("test_recovery - flying back")
-            self.mov.navigation_manager(self.con.loc_dem[0], 20)
-            self.mov.change_mode_landing()
+            self.cra.navigation_manager(self.con.loc_dem[0], 20)
+            self.cra.change_mode_landing()
 
     # test navigation
     def test_navigation(self):
         self.log.log_data("test_navigation - begin")
-        mov.navigation_manager(con.loc_rand_unr, 20)
+        self.cra.navigation_manager(con.loc_rand_unr, 20)
         self.log.log_data("test_navigation - end")
 
 
@@ -774,7 +797,7 @@ class Testing:
 #     [launch, eject, recover, navigate, land]
 #
 class Mission:
-    mov = Move()
+    cra = Craft()
     sen = Sensors()
     log = Logging()
     test = Testing()
@@ -847,7 +870,7 @@ class Mission:
         return True
 
     def autorun(self):
-        if self.mov.setup() is True:
+        if self.cra.setup() is True:
             self.log.log_data("mission class - craft check passed.  starting script")
             self.setup()
             self.run_mission()
