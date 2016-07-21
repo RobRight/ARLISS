@@ -39,12 +39,11 @@ class Config:
     run_test = False # sensor and file testing
     require_disarm = False
     # navigation
-    distance_complete = 10  # complete once this close
-    jump_distance = 400  # distance to jump
-    jump_alt = 100  # verticle distance to jump
+    jump_distance = 100  # distance to jump
+    jump_alt = 80  # verticle distance to jump
     # recovery
     recover_arm = False  # mission (true)
-    wait_recov = False  # wait until recovered - NR
+    wait_recov = True  # wait until recovered - NR
     # takeoff
     takeoff_throttle_val = 0.7
     default_takeoff_alt = 20  # m ??
@@ -146,7 +145,7 @@ class Logging:
         if self.con.log_enable:
             filename = self.generate_filename(self.con.default_name)
             f = open(filename, 'a')
-            current_time = time.strftime("%H_%M_%S", time.localtime())
+            current_time = time.strftime("%H_%M_%S: ", time.localtime())
             f.write(current_time + in_data + "\n")
             f.close()
         if self.con.print_enable is True:
@@ -318,7 +317,7 @@ class Move:
     # pass: NA
     def arm_craft(self):
         self.log.log_data("move class - arming motors")
-        self.change_mode_loiter()
+        self.change_mode_stabilize()
         self.rc_reset_all()
         # left stick to bottom right.  throttle and yaw channels
         self.rc_set_all(0, -1, -1, 1)
@@ -336,7 +335,7 @@ class Move:
     # pass: NA
     def disarm_craft(self):
         self.log.log_data("move class - disarming motors")
-        self.change_mode_loiter()
+        self.change_mode_stabilize()
         self.rc_reset_all()
         # left stick bottom left. throttle and yaw channels
         self.rc_set_all(0, -1, -1, 0)
@@ -358,6 +357,8 @@ class Move:
     def calc_distance(self, start_loc, end_loc):
         R=6378137
         # Haversine Formula
+        start_loc = [math.radians(start_loc[0]), math.radians(start_loc[1])]
+        end_loc = [math.radians(end_loc[0]), math.radians(end_loc[1])]
         dlat = end_loc[0] - start_loc[0]
         dlon = end_loc[1] - start_loc[1]
         a = math.pow(math.sin(dlat/2), 2)+math.cos(start_loc[0])*math.cos(end_loc[0])*math.pow(math.sin(dlon/2), 2)
@@ -407,6 +408,7 @@ class Move:
         MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp, loc[0])  # set waypoint latitude
         MissionPlanner.Utilities.Locationwp.lng.SetValue(new_wp, loc[1])  # set waypoint longitude
         MissionPlanner.Utilities.Locationwp.alt.SetValue(new_wp, loc_alt)  # set waypoint altitude
+        self.change_mode_guided()
         MAV.setGuidedModeWP(new_wp)  # begin waypoint
         # logs waypoint info
         self.log.log_data("waypoint set: lat:" + str(loc[0]) +
@@ -449,21 +451,20 @@ class Move:
                 # at target altitude
                 temp_alt = target_alt
             # find next loc
-            if remaining_dist > self.con.jump_distance:
+            if abs(remaining_dist) > self.con.jump_distance:
                 # find next jump location
                 temp_dir = self.calc_direction_to(current_loc, target)
-                print(str(temp_dir))
                 temp_jump_loc = self.generate_location(current_loc, self.con.jump_distance, temp_dir)
+                self.log.log_data("move class - navigation: next waypoint")
+                self.set_waypoint(temp_jump_loc, temp_alt)
+                self.wait_waypoint_complete()
             else:
                 # next jump is target
-                temp_jump_loc = target
-            # within range of target
-            if remaining_dist < self.con.distance_complete:
+                self.log.log_data("move class - moving to final waypoint")
+                self.set_waypoint(target, target_alt)
+                self.wait_waypoint_complete()
                 nav_complete = True
-            # fly to target
-            self.log.log_data("move class - navigation: next waypoint")
-            self.set_waypoint(temp_jump_loc, temp_alt)
-            self.wait_waypoint_complete()
+            
         self.log.log_data("move class - navigation complete")
     # - waypoints end -
 
@@ -605,6 +606,7 @@ class Rocket:
         self.log.log_data("mission class - wait for recovery")
         # check sensors
         # if level wait a few seconds
+        # if still level then return
         self.log.log_data("mission class - craft recovered")
 
     def recover(self):
@@ -613,9 +615,19 @@ class Rocket:
         if (self.con.recover_arm):
             self.mov.arm_craft()
         self.mov.change_mode_stabilize()
-        self.mov.set_waypoint([self.sen.current_lat, self.sen.current_lng], (self.sen.current_alt-6))
+        self.mov.rc_set_value(self.mov.rc_throttle, 0.8)
+        time.sleep(1)
+        self.mov.change_mode_loiter()
+        self.sen.get_data()
+        self.mov.set_waypoint([self.sen.current_lat, self.sen.current_lng], (self.sen.current_altitude-10))
         if (self.con.wait_recov):
-            self.wait_for_recover()
+            ## testing only
+            self.sen.get_data()
+            current_vs = self.sen.current_vertical_speed
+            while abs(current_vs) > 1.0:
+                self.sen.get_data()
+                current_vs = self.sen.current_vertical_speed
+            ## self.wait_for_recover()
         else:
             time.sleep(4)
         self.log.log_data("mission_clas - recovery complete")
@@ -733,11 +745,12 @@ class Testing:
             self.mov.set_waypoint(self.con.loc_dem[5], self.con.test_recover_start_alt)  # recovery location
             self.mov.wait_waypoint_complete()
         self.log.log_data("test_recovery - disableing craft")
-        self.mov.rc_reset_all()
+        self.mov.change_mode_stabilize()
+        self.mov.rc_set_value(self.mov.rc_throttle, 0.5)
+        time.sleep(1)
+        self.mov.rc_reset_all()  # cut throttle
         if (self.con.recover_arm):
             self.mov.disarm_craft()  # disarm
-        else:
-            self.mov.rc_set_value(self.mov.rc_throttle, 0)  # cut throttle
         time.sleep(self.con.recover_test_sleep)  # wait
         self.log.log_data("test_recovery - starting recovery")
         self.rok.recover()  # recover
