@@ -10,7 +10,7 @@
 # - detect rocket ejection (accelerometer, altitude, vertical speed)
 # - test parameter manage function (GPS, Failsafes)
 # - add parameter manage for PIDs
-# - test arming in midflight
+# - test arming in midflight (pre-arm checks)
 # 
 
 
@@ -42,62 +42,60 @@ import MAVLink  # needed?
 
 class Config:
     # - general settings -
-    verbose = True
-    mission_mode = "t4"
-    location = "dem"
-    run_test = False # sensor and file testing
-    require_disarm = False
-    disable_gps_on_start = False
+    mission_mode = "t4"  # specific mission to run.  see options above. (0)
+    location = "dem"  # flying locaion.  default: dem (demonte ranch)
+    run_test = False # sensor and file testing. (False)
+    require_disarm = False  # check at start to require disarm.  False is starting in air. (False)
+    disable_gps_on_start = False  # True to disable GPS on code start.  (False)
     # navigation
-    jump_distance = 100  # distance to jump
-    jump_alt = 80  # verticle distance to jump
+    jump_distance = 100  # distance to jump each time. - needs testing. (100)
+    jump_alt = 80  # verticle distance to jump. - needs testing. (80)
     # recovery
-    recover_arm = False  # mission (true)
-    wait_recov = True  # wait until recovered - NR
+    recover_arm = False  # when recovering craft, set True to arm first. (False)
+    wait_recov = True  # wait until recovered. - needs work (True)
     # takeoff
-    takeoff_throttle_val = 0.7
-    default_takeoff_alt = 20  # m ??
-    default_takeoff_speed = 2  # m/s ??
+    takeoff_throttle_val = 0.7  # starting throttle value for takeoff. (70%)
+    default_takeoff_alt = 20  # distance in meters from starting location to reach in takeoff. (20 m)
+    default_takeoff_speed = 2  # vertial speed goal during takeoff in meters per second. (2 m/s)
     # land
-    desired_vert_speed = -0.2 # once vs here. landed
+    desired_vert_speed = -0.2 # once vertial speed drops below this value, assume landed. (-0.2 m/s)
     # waypoints
-    waypoint_tolerance = 5  # m ??
-    ## custom_path = [0,1,2,3,4,5,6,7,8,9,10]
+    waypoint_tolerance = 5  # distance away from waypoints in meteres to consider it completed. (5 m)
     # ---------------------------
     # - testing class -
     # test_arm function
-    test_disarm = False  # not implemented
+    test_disarm = False  # not implemented - include disarm after arm (False)
     # test_waypoints function
-    include_takeoff_wp = True
-    testing_altitude = 30  # units
-    wp_1_index = 2  # test_waypoint loc 1
-    wp_2_index = 5
-    return_after = True
-    # test takeoff
-    include_takeoff_t = True
-    hold_position_time = 10
+    include_takeoff_wp = True  # after takeoff, set current position as a waypoint to maintain control. (True)
+    testing_altitude = 20  # relative altitude to test waypoints in meters. (20 m)
+    wp_1_index = 2  # first waypoint index to fly to. (2)
+    wp_2_index = 5  # second waypoint index to fly to. (5)
+    return_after = True  # RTL after waypoint tests. (True)
+    # test takeoff and landing
+    include_takeoff_t = True  # include takeoff in test.  otherwise, start in the air. (True)
+    hold_position_time = 10  # time to hold in the air before landing in seconds. (10 s)
     # test recovery
-    test_recover_start_alt = 120
-    takeoff_before_recover = True
-    flyto_recover = True  # starting position
-    recover_test_sleep = 3  # sleep to allow free fall
-    fly_back_home = True  # fly back to pickup after test
+    test_recover_start_alt = 120  # altitude to start recovery test at in meters. (120 m)
+    takeoff_before_recover = True  # include takeoff in recover test. False start from air. (True)
+    flyto_recover = True  # fly to starting position for recovery test (True)
+    recover_test_sleep = 3  # sleep time to allow free fall in seconds (3 s)
+    fly_back_home = True  # RTL after recovery test (True)
     # - logging class -
-    log_enable = True  # enable file logging
-    print_enable = True  # enable console logging
-    default_name = "log_file"  # file log filename prefix
+    log_enable = True  # enable file logging (True)
+    print_enable = True  # enable console logging (True)
+    default_name = "log_file"  # file log filename prefix ("log_file")
     # - move class -
     # min distance from waypoint before moving on
     # rc pins
-    rc_throttle_pin = 3
-    rc_pitch_pin = 2
-    rc_roll_pin = 1
-    rc_yaw_pin = 4
+    rc_throttle_pin = 3  # (3)
+    rc_pitch_pin = 2  # (2)
+    rc_roll_pin = 1  # (1)
+    rc_yaw_pin = 4  # (4)
     # esc pins
-    esc_f_pin = 3
-    esc_b_pin = 4
-    esc_l_pin = 2
-    esc_r_pin = 1
+    esc_f_pin = 3  # (3) - not implemented
+    esc_b_pin = 4  # (4) - not implemented
+    esc_l_pin = 2  # (2) - not implemented
+    esc_r_pin = 1  # (1) - not implemented
     # ---------------------------
     # locations: [latitude, longitude]
     # random
