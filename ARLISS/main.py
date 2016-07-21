@@ -23,6 +23,7 @@ import MAVLink  # needed?
 # (t2) test takeoff and landing - goes up and lands at the same location.
 # (t3) test waypoints - flys to a few waypoints, then rtl and land
 # (t4) test recovery - check settings in config class
+# (t5) test_navigation
 # (ma-01) - mission_alpah - complete mission from idle, launch, recovery, navigation, and landling.
 
 # location options:
@@ -42,11 +43,10 @@ class Config:
     jump_distance = 400  # distance to jump
     jump_alt = 100  # verticle distance to jump
     # recovery
-    recover_arm = False  # testing - already in flight
-    wait_recov = False  # not ready
-    flyto_recover = True  # fly to recover location
+    recover_arm = False  # mission (true)
+    wait_recov = False  # wait until recovered - NR
     # takeoff
-    takeoff_throttle_val = 0.8
+    takeoff_throttle_val = 0.7
     default_takeoff_alt = 20  # m ??
     default_takeoff_speed = 2  # m/s ??
     # land
@@ -68,10 +68,11 @@ class Config:
     include_takeoff_t = True
     hold_position_time = 10
     # test recovery
-    takeoff_before_recover = False
-    flyto_recover = True
-    recover_test_sleep = 3
-    fly_back_home = True
+    test_recover_start_alt = 120
+    takeoff_before_recover = True
+    flyto_recover = True  # starting position
+    recover_test_sleep = 3  # sleep to allow free fall
+    fly_back_home = True  # fly back to pickup after test
     # - logging class -
     log_enable = True  # enable file logging
     print_enable = True  # enable console logging
@@ -79,15 +80,15 @@ class Config:
     # - move class -
     # min distance from waypoint before moving on
     # rc pins
-    rc_throttle_pin = 4
+    rc_throttle_pin = 3
     rc_pitch_pin = 2
     rc_roll_pin = 1
     rc_yaw_pin = 4
     # esc pins
-    esc_fr_pin = 0
-    esc_br_pin = 0
-    esc_bl_pin = 0
-    esc_fl_pin = 0
+    esc_f_pin = 3
+    esc_b_pin = 4
+    esc_l_pin = 2
+    esc_r_pin = 1
     # ---------------------------
     # locations: [latitude, longitude]
     # random
@@ -145,11 +146,11 @@ class Logging:
         if self.con.log_enable:
             filename = self.generate_filename(self.con.default_name)
             f = open(filename, 'a')
-			current_time = time.strftime("%H_%M_%S", time.localtime())
+            current_time = time.strftime("%H_%M_%S", time.localtime())
             f.write(current_time + in_data + "\n")
             f.close()
         if self.con.print_enable is True:
-            print(in_data)
+            print(in_data);
     
     # write given data to file with given name
     def log_data_custom(self, in_name, in_data):
@@ -261,10 +262,10 @@ class Move:
     rc_roll = [con.rc_roll_pin, Script.GetParam('RC5_MIN'), Script.GetParam('RC5_MAX')]
     rc_yaw = [con.rc_yaw_pin, Script.GetParam('RC6_MIN'), Script.GetParam('RC6_MAX')]
     # ESC output [pin, min, max]
-    # esc_fr = [esc_fr_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_br = [esc_br_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_bl = [esc_bl_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_fl = [esc_fl_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+    # esc_f = [esc_f_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+    # esc_b = [esc_b_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+    # esc_l = [esc_l_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+    # esc_r = [esc_r_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
 
     # State variables:
     armed = False
@@ -527,7 +528,7 @@ class Move:
         # arm
         self.arm_craft()
         # enter loiter mode
-        self.change_mode_loiter()
+        self.change_mode_stabilize()
         # engage motors; warmup then throttle at 80%
         self.rc_reset_all()
         self.rc_set_value(self.rc_throttle, self.con.takeoff_throttle_val)
@@ -589,6 +590,7 @@ class Rocket:
     sen = Sensors()
     mov = Move()
     log = Logging()
+    con = Config()
 
     def __init__(self):
         pass
@@ -611,8 +613,11 @@ class Rocket:
         if (self.con.recover_arm):
             self.mov.arm_craft()
         self.mov.change_mode_stabilize()
+        self.mov.set_waypoint([self.sen.current_lat, self.sen.current_lng], (self.sen.current_alt-6))
         if (self.con.wait_recov):
             self.wait_for_recover()
+        else:
+            time.sleep(4)
         self.log.log_data("mission_clas - recovery complete")
 
 
@@ -715,27 +720,37 @@ class Testing:
             self.mov.wait_waypoint_complete()
         self.log.log_data("test_waypoints - complete")
 
+    # test recovery
     def test_recovery(self):
         self.log.log_data("test_recovery - begin")
         if (self.con.location != "dem"):  # location check
             self.log.log_data("test_recovery - location error")
             return False
         if (self.con.takeoff_before_recover):  # takeoff
-            self.move.change_mode_takeoff()
+            self.mov.change_mode_takeoff()
         if (self.con.flyto_recover):
             self.log.log_data("test_recovery - flying to start position")
-            self.mov.set_waypoint(self.con.loc_dem[5])  # recovery location
+            self.mov.set_waypoint(self.con.loc_dem[5], self.con.test_recover_start_alt)  # recovery location
             self.mov.wait_waypoint_complete()
         self.log.log_data("test_recovery - disableing craft")
         self.mov.rc_reset_all()
-        self.mov.rc_set_value(self.move.rc_throttle, 0)  # cut throttle; could disarm and re-arm??
-        time.sleep(recover_test_sleep)  # wait
+        if (self.con.recover_arm):
+            self.mov.disarm_craft()  # disarm
+        else:
+            self.mov.rc_set_value(self.mov.rc_throttle, 0)  # cut throttle
+        time.sleep(self.con.recover_test_sleep)  # wait
         self.log.log_data("test_recovery - starting recovery")
-        self.rok.recover()
+        self.rok.recover()  # recover
         if (self.con.fly_back_home):
             self.log.log_data("test_recovery - flying back")
-            self.move.navigation_manager(self.con.loc_dem, 20)
-            self.move.change_mode_landing()
+            self.mov.navigation_manager(self.con.loc_dem[0], 20)
+            self.mov.change_mode_landing()
+
+    # test navigation
+    def test_navigation(self):
+        self.log.log_data("test_navigation - begin")
+        mov.navigation_manager(con.loc_rand_unr, 20)
+        self.log.log_data("test_navigation - end")
 
 
 #
@@ -743,7 +758,7 @@ class Testing:
 # ------------------------------------------------------
 # setup for tests of minor classes (Logging, Sensors, Move)
 # note:
-#     [start, launch, eject, recover, land]
+#     [launch, eject, recover, navigate, land]
 #
 class Mission:
     mov = Move()
@@ -763,8 +778,7 @@ class Mission:
 
     # init
     def __init__(self):
-        if self.con.verbose:
-            self.log.log_data("mission class - online")
+        self.log.log_data("mission class - online")
 
     # reset all variables
     def reset_values(self):
@@ -785,8 +799,7 @@ class Mission:
         self.start_time[0] = self.sen.current_time
         self.start_pos[0] = [self.sen.current_lat,  self.sen.current_lng]
         self.start_alt = self.sen.current_altitude
-        if self.con.verbose:
-            self.log.log_data("mission class - setup complete")
+        self.log.log_data("mission class - setup complete")
 
     # Mission Alpha 01 - ARLISS main mission run function
     def ma_01(self):
@@ -807,6 +820,8 @@ class Mission:
             self.test.test_waypoints()
         elif (self.con.mission_mode == "t4"):  # test recovery
             self.test.test_recovery()
+        elif (self.con.mission_mode == "t5"):  # test navigation
+            self.test.test_navigation()
         elif (self.con.mission_mode == "ma-01"):
             self.log.log_data("mission class - starting MissionAlpha-01")
             self.ma_01()
@@ -832,9 +847,6 @@ class Mission:
 # autostart code
 log = Logging()
 con = Config()
-
-# mov = Move()
-# mov.navigation_manager(con.loc_rand_unr, 20)
 
 if (con.run_test):
     log.log_data("run_test begin")
