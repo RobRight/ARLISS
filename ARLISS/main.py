@@ -8,7 +8,9 @@
 # - disable GPS before and during launch
 # - detect launch (barometer, acclerameter)
 # - detect rocket ejection (accelerometer, altitude, vertical speed)
-# - parameter manage function (PIDs, GPS, Failsafes)
+# - test parameter manage function (GPS, Failsafes)
+# - add parameter manage for PIDs
+# - test arming in midflight
 # 
 
 
@@ -45,6 +47,7 @@ class Config:
     location = "dem"
     run_test = False # sensor and file testing
     require_disarm = False
+	disable_gps_on_start = False
     # navigation
     jump_distance = 100  # distance to jump
     jump_alt = 80  # verticle distance to jump
@@ -560,23 +563,32 @@ class Craft:
         self.rc_reset_all()
         self.log.log_data("move class - takeoff complete")
     # - modes end -
-	
-	# - parameters -
-	def params_setup(self):
-		pass
 
+	# - parameters -
 	# gps param enable and disable (True to enable)
 	def params_gps(self, in_en):
 		if in_en:
-			pass
 			# enable gps
+			self.change_mode_stabilize()
+			Script.ChangeParam(AHRS_GPS_USE, 1)
 		else:
-			pass
 			# disable gps
-	
+			Script.ChangeParam(AHRS_GPS_USE, 0)
+
 	# params setup failsafes
 	def params_failsafe_setup(self):
-		pass
+		Script.ChangeParam(FS_BATT_ENABLE, 0)  # 1:land if low battery, 0:disable (dont stop till you drop!)
+		Script.ChangeParam(FS_GCS_ENABLE, 0)  # 0:disabled (local ground station?)
+		Script.ChangeParam(FS_THR_ENABLE, 0)  # 0:disabled (no radio for mission)
+		Script.ChangeParam(FS_EKF_ACTION, 1)  # 1:land
+		Script.ChangeParam(FS_EKF_THRESH, 1.0)  # 1:relaxed (probably needed with rough flight)
+
+	# default params
+	def params_setup(self):
+		Script.ChangeParam(FENCE_ENABLE, 0)  # 0:disabled
+		self.params_failsafe_setup()
+		if self.con.disable_gps_on_start:
+			self.params_gps(False)
 	# - parameters end - 
 
     def check_ready(self):
@@ -604,7 +616,8 @@ class Craft:
         if self.check_ready() is False:
             self.log.log_data("move class - error: check_ready() failed")
             return False
-        ## self.rc_reset_all()
+        self.rc_reset_all()
+		self.params_setup()
         self.change_mode_guided()
         self.log.log_data("move class - setup complete")
         return True

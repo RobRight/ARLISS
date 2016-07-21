@@ -23,28 +23,9 @@ website: http://robright.github.io/ARLISS/
 
  -------------------------------------------------------------------------------------- <br />
 
-## Useful Links: (posibly outdated)
+## Useful Links:
 
- -------------------------------------------------------------------------------------- <br />
-wayoints from code: http://diydrones.com/forum/topics/how-to-python-script-a-time-based-flight-plan <br />
-MissionPlanner: http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/ <br />
-ArduPilot: http://ardupilot.com/ <br />
-Development Site: http://dev.ardupilot.com/ <br />
-Plane Parameters: http://plane.ardupilot.com/wiki/arduplane-parameters/ <br />
-MAVLink Common Message Set: https://pixhawk.ethz.ch/mavlink/ <br />
-MAVLink Mission Command Messages: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/ <br />
-<br />
-
-GPS math stuff: Offset by distance: <br />
- - http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
- - http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
-<br />
-
-SITL: http://ardupilot.org/dev/docs/sitl-simulator-software-in-the-loop.html <br />
- - SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
- - SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
-
- -------------------------------------------------------------------------------------- <br />
+http://ardupilot.org/copter/index.html
 
 ## Python Reference:
 
@@ -128,3 +109,25 @@ def main_run():
 	
 ```
 
+
+(posibly outdated)
+ -------------------------------------------------------------------------------------- <br />
+wayoints from code: http://diydrones.com/forum/topics/how-to-python-script-a-time-based-flight-plan <br />
+MissionPlanner: http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/ <br />
+ArduPilot: http://ardupilot.com/ <br />
+Development Site: http://dev.ardupilot.com/ <br />
+Plane Parameters: http://plane.ardupilot.com/wiki/arduplane-parameters/ <br />
+MAVLink Common Message Set: https://pixhawk.ethz.ch/mavlink/ <br />
+MAVLink Mission Command Messages: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/ <br />
+<br />
+
+GPS math stuff: Offset by distance: <br />
+ - http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
+ - http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
+<br />
+
+SITL: http://ardupilot.org/dev/docs/sitl-simulator-software-in-the-loop.html <br />
+ - SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
+ - SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
+
+ -------------------------------------------------------------------------------------- <br />
