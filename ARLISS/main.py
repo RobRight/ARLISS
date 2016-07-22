@@ -921,7 +921,7 @@ class Mission:
 
     # reset all variables
 	# 
-	# Mission critical: no
+	# Mission critical: yes
 	# Tested: no
     def reset_values(self):
         # start, launch, eject, recover, land
@@ -935,7 +935,7 @@ class Mission:
 
     # setup at start
 	# 
-	# Mission critical: no
+	# Mission critical: yes
 	# Tested: no
     def setup(self):
         self.reset_values()

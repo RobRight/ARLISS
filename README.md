@@ -1,22 +1,22 @@
 # ARLISS
-### ArduPilot Python 2.7 code
 
 website: http://robright.github.io/ARLISS/
 
-## Files:
+## Directory Outline:
  -------------------------------------------------------------------------------------- <br />
 <b>ARLISS:</b> only offical flight code here <br />
-<b>TestCode:</b> all other code here <br />
+	- main.py: mission code<br />
+	- info<br />
+	- test<br />
+<b>other:</b> generic test code <br />
 	- Other tests <br />
 	- Drop code <br />
-
 ### main.py (main):
 -- [ARLISS/main.py](ARLISS/main.py) --
 ### payload_drop.py (payload_drop):
-[TestCode/drop_code/payload_drop.py] (TestCode/drop_code/payload_drop.py)
+[TestCode/drop_code/payload_drop.py] (TestCode/drop_code/payload_drop.py)<br />
  -------------------------------------------------------------------------------------- <br />
 ## Useful Links:
-<br />
 general:<br />
 	- ArduCopter: http://ardupilot.org/copter/index.html<br />
 	- Python and Mission Planner: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
@@ -33,7 +33,7 @@ logging:<br />
 	- http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary<br />
 	- http://askubuntu.com/questions/138922/path-to-user-desktop-using-python<br />
 <br />
-## Python Reference:<br />
+## Python Reference:
 Information about ArduPilot (copter) python commands:<br />
 --------------------------------------------------------------------------------------<br />
 cs.x<br />
@@ -58,8 +58,7 @@ MAV.doCommand(command);  - MAVLink Mission Command Messages (not tested)<br />
 Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))<br />
  -------------------------------------------------------------------------------------- <br />
 <br />
-## Code Example:
-
+## Code Example:<br />
 ```python
 # call at mission start
 	def start():
