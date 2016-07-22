@@ -24,11 +24,25 @@ website: http://robright.github.io/ARLISS/
  -------------------------------------------------------------------------------------- <br />
 
 ## Useful Links:
-
-http://ardupilot.org/copter/index.html
-
-## Python Reference:
-
+<br />
+general:<br />
+	- ArduCopter: http://ardupilot.org/copter/index.html
+	- Python and Mission Planner: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
+<br />
+parameters: http://ardupilot.org/copter/docs/parameters.html
+flight modes: http://ardupilot.org/copter/docs/flight-modes.html
+waypoints: http://www.diydrones.com/forum/topics/mission-planner-python-script
+<br />
+calculations:<br />
+	- generate new location: http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters
+	- direction to: http://www.movable-type.co.uk/scripts/latlong.html
+<br />
+logging:<br />
+	- http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary
+	- http://askubuntu.com/questions/138922/path-to-user-desktop-using-python
+<br />
+## Python Reference:<br />
+<br />
 Information about ArduPilot (copter) python commands:<br />
 --------------------------------------------------------------------------------------<br />
 <br />

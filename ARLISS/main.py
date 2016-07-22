@@ -5,13 +5,13 @@
 # http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
 #
 # ToDo:
-# - disable GPS before and during launch
+# - disable GPS before and during launch - test
 # - detect launch (barometer, acclerameter)
 # - detect rocket ejection (accelerometer, altitude, vertical speed)
 # - test parameter manage function (GPS, Failsafes)
-# - add parameter manage for PIDs
+# - complete parameter manage for PIDs
 # - test arming in midflight (pre-arm checks)
-# 
+# - add state variables class??
 
 
 import math  # math
@@ -87,10 +87,10 @@ class Config:
     # - move class -
     # min distance from waypoint before moving on
     # rc pins
-    rc_throttle_pin = 3  # (3)
-    rc_pitch_pin = 2  # (2)
-    rc_roll_pin = 1  # (1)
-    rc_yaw_pin = 4  # (4)
+    rc_throttle_pin = 3  # (3) rc throttle pin
+    rc_pitch_pin = 2  # (2) rc pitch pin
+    rc_roll_pin = 1  # (1) roll pin
+    rc_yaw_pin = 4  # (4) yaw pin
     # esc pins
     esc_f_pin = 3  # (3) - not implemented
     esc_b_pin = 4  # (4) - not implemented
@@ -126,22 +126,24 @@ class Logging:
     start_time = ()  # assigned at start by 'Mission' class
 
     # set directory and create folder if not found
+	# Tested: no
     def __init__(self):
-        # TEMP
+        # TEMP, FIX
         self.start_time = time.localtime()
-        # http://askubuntu.com/questions/138922/path-to-user-desktop-using-python
+
         self.directory = os.path.expanduser('~') + "\Documents\CODE_LOGS"
-        # http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
 
     # generate a file name directory and time stanp
+	# Tested: no
     def generate_filename(self, given):
         filename = given + "_" + time.strftime("%m_%d_%y__%H_%M_%S", self.start_time)
         filename2 = os.path.join(self.directory, filename + ".txt")
         return filename2
 
     # clear given file
+	# Tested: no
     def clear_log(self, in_f_name):
         if self.con.log_enable:
             filename = self.generate_filename(in_f_name)
@@ -149,6 +151,7 @@ class Logging:
             f.close()
 
     # write given data to file
+	# Tested: no
     def log_data(self, in_data):
         if self.con.log_enable:
             filename = self.generate_filename(self.con.default_name)
@@ -160,6 +163,7 @@ class Logging:
             print(in_data);
     
     # write given data to file with given name
+	# Tested: no
     def log_data_custom(self, in_name, in_data):
         if self.con.log_enable:
             filename = self.generate_filename(in_name)
@@ -206,7 +210,8 @@ class Sensors:
 
     # get current flight data
     # info: under 'Python Variable: cs'
-    # http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
+	# note: check that all variables are current, used, and all that are needed are here.
+	# Tested: no
     def get_data(self):
         ## self.log.log_data("logging class - got new sensor data")
 
@@ -242,6 +247,8 @@ class Sensors:
         self.current_gyro.append(cs.gz)
     
     # log sensor data to 'log_data' file
+	# note: could add more values
+	# Tested: no
     def log_data(self):
         self.log.log_data("- logging sensor data -")
         self.log.log_data("current_time: %f" % self.current_time)
@@ -285,7 +292,8 @@ class Craft:
     # input:
     #   - channel (ex: rc_throttle)
     #   - double (must be in 0:1 range)
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def rc_set_value(self, chan, in_val):
         # check input
         if in_val > 1 or in_val < 0:
@@ -302,7 +310,8 @@ class Craft:
 
     # set value to all four rc channels
     # input: double x4 (0:1); to skip a channel input (-1) for its value
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def rc_set_all(self, in_t, in_p, in_r, in_y):
         if in_t != (-1):
             self.rc_set_value(self.rc_throttle, in_t)
@@ -315,14 +324,16 @@ class Craft:
         return True
 
     # reset all rc value inputs to idle position
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def rc_reset_all(self):
         # throttle min, pitch half, roll half, yaw half
         self.rc_set_all(0.0, 0.5, 0.5, 0.5)
         return True
 
     # arm craft.  failsafes must pass.
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def arm_craft(self):
         self.log.log_data("move class - arming motors")
         self.change_mode_stabilize()
@@ -339,7 +350,8 @@ class Craft:
         return True
 
     # disarm motors (low power mode)
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def disarm_craft(self):
         self.log.log_data("move class - disarming motors")
         self.change_mode_stabilize()
@@ -360,6 +372,8 @@ class Craft:
     # - waypoints begin -
     # returns the distance between two locations
     # input: start_loc: [lat, lon], end_loc: [lat, lon]
+	# Mission critical: yes
+	# Tested: no
     def calc_distance(self, start_loc, end_loc):
         R=6378137
         # Haversine Formula
@@ -372,9 +386,11 @@ class Craft:
         d = R * c
         return d
 
-    #
-    #
-    # http://www.movable-type.co.uk/scripts/latlong.html
+    # Calculated direction to target from start location
+    # Returns direction in degrees
+	# Input: start_loc(lat,lng) end_loc(lat,lng)
+	# Mission critical: yes
+	# Tested: no
     def calc_direction_to(self, start_loc, end_loc):
         start_lat = math.radians(start_loc[0])
         start_lon = math.radians(start_loc[1])
@@ -390,7 +406,9 @@ class Craft:
 
     # returns new location [lat, lon] given current location, displacement and direction
     # input: start_loc: [lat, lon], dist: distance in meters, dir: direction in degrees
-    # http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters
+    # 
+	# Mission critical: yes
+	# Tested: PASS-WG-07/21
     def generate_location(self, start_loc, dist, dir):
         # Earths radius, sphere
         R=6378137
@@ -407,9 +425,9 @@ class Craft:
 
     # passing all ([loc,lng],alt) values will send this waypoint to craft
     # input: [latitude, longitude], (int) altitude (units???)
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def set_waypoint(self, loc, loc_alt):
-        # http://www.diydrones.com/forum/topics/mission-planner-python-script
         new_wp = MissionPlanner.Utilities.Locationwp()  # create waypoint object
         MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp, loc[0])  # set waypoint latitude
         MissionPlanner.Utilities.Locationwp.lng.SetValue(new_wp, loc[1])  # set waypoint longitude
@@ -420,9 +438,10 @@ class Craft:
         self.log.log_data("waypoint set: lat:" + str(loc[0]) +
             " lng:" + str(loc[1]) + " alt:" + str(loc_alt))
 
-    # waits for waypoint_complete() to finish
+    # Returns after current waypoint complete based on distance to target.
     # note: blocking functions.  could add timeout
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def wait_waypoint_complete(self):
         self.log.log_data("move class - waiting for waypoint")
         time.sleep(1)
@@ -434,9 +453,12 @@ class Craft:
         self.log.log_data("move class - wait: waypoint complete: " + str(self.sen.current_distance))
         return True
 
-    # 
+    # Navigation manager determines path and sets waypoints
+	# Returns after target is reached.  Holds position at target
     # input: target: [lat, lon], target_alt: target altitude
     # note: add types like directional or decent
+	# Mission critical: yes
+	# Tested: no
     def navigation_manager(self, target, target_alt):
         self.log.log_data("move class - navigation start")
         self.sen.get_data()
@@ -470,21 +492,14 @@ class Craft:
                 self.set_waypoint(target, target_alt)
                 self.wait_waypoint_complete()
                 nav_complete = True
-            
         self.log.log_data("move class - navigation complete")
     # - waypoints end -
 
     # - modes begin -
-    # engage landing
-    # do not return until landing complete or timeout
-    # pass: yes
-    def change_mode_landing(self):
-        Script.ChangeMode('LAND')  # set mode to LAND
-        # http://copter.ardupilot.com/wiki/land-mode/
-
     # waits for landing based on verticle speed
     # note: blocking function. could add timeout
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def wait_for_land(self):
         self.log.log_data("move class - waiting for land")
         time.sleep(2)
@@ -501,9 +516,18 @@ class Craft:
         self.log.log_data("move class - landing complete")
         return True
 
+	# engage landing
+    # do not return until landing complete or timeout
+	# Mission critical: yes
+    # Tested: no
+    def change_mode_landing(self):
+        Script.ChangeMode('LAND')  # set mode to LAND
+		self.wait_for_land()
+
     # change mode to loiter
     # info: hold position and altitude
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def change_mode_loiter(self):
         Script.ChangeMode('LOITER')
         # Script.WaitFor('LOITER', 5000)  # whats this do?
@@ -512,22 +536,25 @@ class Craft:
         Script.ChangeMode('STABILIZE')
 
     # change mode to guided
-    # info: 
-    # pass: NA
+    # info: auto waypoint mode
+	# Mission critical: yes
+    # Tested: no
     def change_mode_guided(self):
         Script.ChangeMode('GUIDED')
         # Script.WaitFor('GUIDED', 5000)
 
     # return to launch site and land
-    # pass: NA
+	# Mission critical: yes
+    # Tested: no
     def change_mode_rtl(self):
         Script.ChangeMode('RTL')
         # Script.WaitFor('RTL', 5000)
 
     # takeoff for testing and non-assisted flying
-    # do not return until takeoff completes or timeout
-    # note: desired vs is 2
-    # pass: NA - not ready
+    # do not return until takeoff completes (or timeout NI)
+    # note: desired vertical speed is 2
+	# Mission critical: yes
+    # Tested: no
     def change_mode_takeoff(self):
         self.log.log_data("move class - begin takeoff")
         self.sen.get_data()
@@ -563,7 +590,17 @@ class Craft:
     # - modes end -
 
     # - parameters -
-    # gps param enable and disable (True to enable)
+	# Sets default flight configuration PID values.
+	# Todo: incomplete FIX
+	# Mission critical: yes
+	# Tested: no
+	def params_pids_default(self):
+		Script.ChangeParam()
+
+	# Enables and disables the GPS depending on boolean input.
+	# Input: in_en(True:enable, False:disable)
+	# Mission critical: yes
+	# Tested: no
     def params_gps(self, in_en):
         if in_en:
             # enable gps
@@ -573,7 +610,10 @@ class Craft:
             # disable gps
             Script.ChangeParam(AHRS_GPS_USE, 0)
 
-    # params setup failsafes
+	# Sets the crafts failsafes at script start.
+	# Failsafes: battery, groundstation, RC connection, Kalman filter (EKF), EKF threshold
+	# Mission critical: yes
+	# Tested: no
     def params_failsafe_setup(self):
         Script.ChangeParam(FS_BATT_ENABLE, 0)  # 1:land if low battery, 0:disable (dont stop till you drop!)
         Script.ChangeParam(FS_GCS_ENABLE, 0)  # 0:disabled (local ground station?)
@@ -581,7 +621,11 @@ class Craft:
         Script.ChangeParam(FS_EKF_ACTION, 1)  # 1:land
         Script.ChangeParam(FS_EKF_THRESH, 1.0)  # 1:relaxed (probably needed with rough flight)
 
-    # default params
+    # Setup parameters for flight at script start.
+	# Disable the fence, call 'params_failsafe_setup()', *disable GPS
+	# Todo: ensure all parameters are covered.  Posibly set redundant parameters as well.
+	# Mission critical: yes
+	# Tested: no
     def params_setup(self):
         Script.ChangeParam(FENCE_ENABLE, 0)  # 0:disabled
         self.params_failsafe_setup()
@@ -589,6 +633,12 @@ class Craft:
             self.params_gps(False)
     # - parameters end - 
 
+	# Runs at script start.  Checks basic current craft setup.
+	# Will pass if the craft is setup correctly for script control.
+	# Checks: *armed, location, gps lock
+	# Todo: location will fail if not at demonte. FIX
+	# Mission critical: yes
+	# Tested: no
     def check_ready(self):
         check_pass = True
         # armed check
@@ -608,9 +658,11 @@ class Craft:
         # return
         return check_pass
 
-    # setup motor code stuff
+	# Setup general at script start.
+	# Calls: check_ready(), rc_reset_all(), change_mode_guided()
+	# Mission critical: yes
+	# Tested: no
     def setup(self):
-        # inital check before script will accept control of craft.
         if self.check_ready() is False:
             self.log.log_data("move class - error: check_ready() failed")
             return False
@@ -630,12 +682,21 @@ class Rocket:
     def __init__(self):
         pass
 
+	# 
+	# Mission critical: yes
+	# Tested: no
     def detect_launch(self):
         pass  # check acceleromiter or alitude
 
+	# 
+	# Mission critical: yes
+	# Tested: no
     def detect_ejection(self):
         pass  # check acceleromiter or alitude
 
+	# 
+	# Mission critical: yes
+	# Tested: no
     def wait_for_recover(self):
         self.log.log_data("mission class - wait for recovery")
         # check sensors
@@ -643,6 +704,9 @@ class Rocket:
         # if still level then return
         self.log.log_data("mission class - craft recovered")
 
+	# 
+	# Mission critical: yes
+	# Tested: no
     def recover(self):
         # assumed terminal velocity: 35 to 40 m/s
         self.log.log_data("mission class - recovery start")
@@ -682,6 +746,9 @@ class Testing:
         pass
 
     # test file operations
+	# 
+	# Mission critical: no
+	# Tested: no
     def test_filelog(self):
         self.log.log_data("testing class - test_filelog() begin")
         log.log_data_custom("test_log", "test log data. \
@@ -692,6 +759,9 @@ class Testing:
         self.log.log_data("testing class - test_filelog() complete")
 
     # test sensor class
+	# 
+	# Mission critical: no
+	# Tested: no
     def test_sensors(self):
         self.log.log_data("testing class - test_sensors() begin")
         self.log.log_data("")
@@ -701,7 +771,17 @@ class Testing:
             time.sleep(1)
         self.log.log_data("testing class - test_senssors() complete")
 
+	# test craft class distance and direction functions
+	# FIX
+	# Mission critical: no
+	# Tested: no
+	def test_navigation_sub_functions(self):
+		pass
+
     # test arm and disarm - optional disarm (not tested)
+	# 
+	# Mission critical: no
+	# Tested: no
     def test_arm(self):
         # arm
         self.log.log_data("testing class - test_arm() begin")
@@ -720,6 +800,9 @@ class Testing:
             self.log.log_data("testing class - test_arm() complete")
 
     # test takeoff
+	# 
+	# Mission critical: no
+	# Tested: no
     def test_takeoff(self):
         self.log.log_data("test_takeoff - begin")
         if self.con.include_takeoff_t:
@@ -738,6 +821,9 @@ class Testing:
         self.log.log_data("test_takeoff - complete")
 
     # test waypoints
+	# 
+	# Mission critical: no
+	# Tested: no
     def test_waypoints(self):
         self.log.log_data("test_waypoints - begin")
         if self.con.include_takeoff_wp:
@@ -767,6 +853,9 @@ class Testing:
         self.log.log_data("test_waypoints - complete")
 
     # test recovery
+	# 
+	# Mission critical: no
+	# Tested: no
     def test_recovery(self):
         self.log.log_data("test_recovery - begin")
         if (self.con.location != "dem"):  # location check
@@ -794,6 +883,9 @@ class Testing:
             self.cra.change_mode_landing()
 
     # test navigation
+	# 
+	# Mission critical: no
+	# Tested: no
     def test_navigation(self):
         self.log.log_data("test_navigation - begin")
         self.cra.navigation_manager(con.loc_rand_unr, 20)
@@ -828,6 +920,9 @@ class Mission:
         self.log.log_data("mission class - online")
 
     # reset all variables
+	# 
+	# Mission critical: no
+	# Tested: no
     def reset_values(self):
         # start, launch, eject, recover, land
         self.start_time = [0, 0, 0, 0, 0]
@@ -839,6 +934,9 @@ class Mission:
         self.mission_complete = False
 
     # setup at start
+	# 
+	# Mission critical: no
+	# Tested: no
     def setup(self):
         self.reset_values()
         # log starting data
@@ -849,10 +947,16 @@ class Mission:
         self.log.log_data("mission class - setup complete")
 
     # Mission Alpha 01 - ARLISS main mission run function
+	# 
+	# Mission critical: yes
+	# Tested: no
     def ma_01(self):
         pass
 
     # run mission
+	# 
+	# Mission critical: yes
+	# Tested: no
     def run_mission(self):
         self.log.log_data("mission class - running mission")
         if (self.con.mission_mode == "0"):  # no mission
@@ -880,6 +984,9 @@ class Mission:
         self.log.log_data("mission class - mission complete")
         return True
 
+	# Call to start the script
+	# Mission critical: yes
+	# Tested: no
     def autorun(self):
         if self.cra.setup() is True:
             self.log.log_data("mission class - craft check passed.  starting script")
@@ -898,8 +1005,8 @@ con = Config()
 if (con.run_test):
     log.log_data("run_test begin")
     test = Testing()
-    test.test_filelog()  # option
-    test.test_sensors()  # option
+    test.test_filelog()
+    test.test_sensors()
     log.log_data("run_test complete")
 else:
     # start script
