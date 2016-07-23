@@ -18,7 +18,7 @@
 # - add state variables class??
 # - add battery monitor function w/ periodic update
 # - add periodic status report. distance to target.  distance covered. 
-#
+# - add periodic checks that craft is stable and on track
 #
 
 
@@ -221,6 +221,7 @@ class Sensors:
     current_gps_stat = 0.0
     current_gps_count = 0.0
     current_battery_voltage = 0.0
+	current_battery_remaining = 0.0
     current_armed = False
     current_altitude_error = 0.0
     current_accel = []
@@ -235,28 +236,29 @@ class Sensors:
     # note: check that all variables are current, used, and all that are needed are here.
     # Tested: no
     def get_data(self):
-        ## self.log.log_data("logging class - got new sensor data")
+        # self.log.log_data("logging class - got new sensor data")
 
-        self.current_time = time.time()
-        self.current_mode = cs.mode  # NOTE
-        self.current_distance = cs.wp_dist  # NOTE
-        self.current_waypoint = cs.wpno
-        self.current_altitude = cs.alt  # NOTE
-        self.current_vertical_speed = cs.verticalspeed  # NOTE
-        self.current_ground_speed = cs.groundspeed  # NOTE
-        self.current_ground_course = cs.groundcourse
-        self.current_wind_direction = cs.wind_dir
-        self.current_wind_speed = cs.wind_vel
-        self.current_roll = cs.roll  # NOTE
-        self.current_pitch = cs.pitch  # NOTE
-        self.current_yaw = cs.yaw
-        self.current_lat = cs.lat
-        self.current_lng = cs.lng
-        self.current_gps_stat = cs.gpsstatus
-        self.current_gps_count = cs.satcount
-        self.current_battery_voltage = cs.battery_voltage
-        self.current_armed = cs.armed  # NOTE
-        self.current_altitude_error = cs.alt_error
+        self.current_time = time.time()  # computer time () *
+        self.current_mode = cs.mode  # flight mode (mode)
+        self.current_distance = cs.wp_dist  # remaining waypoint distance (m)
+        self.current_waypoint = cs.wpno  # waypoint number (#)
+        self.current_altitude = cs.alt  # altitude (m)
+        self.current_vertical_speed = cs.verticalspeed  # vertical speed (m/s) *
+        self.current_ground_speed = cs.groundspeed  # ground speed (m/s)
+        self.current_ground_course = cs.groundcourse  # ground course (deg)
+        self.current_wind_direction = cs.wind_dir  # wind direction (deg)
+        self.current_wind_speed = cs.wind_vel  # wind velocity (m/s)
+        self.current_roll = cs.roll  # roll (deg) *
+        self.current_pitch = cs.pitch  # pitch (deg) *
+        self.current_yaw = cs.yaw  # yaw (deg)
+        self.current_lat = cs.lat  # latitude (decimal degrees) *
+        self.current_lng = cs.lng  # longitude (decimal degrees) *
+        self.current_gps_stat = cs.gpsstatus  # GPS status (not sure.. 3 for 3D fix?) *
+        self.current_gps_count = cs.satcount  # satellite count (#)
+        self.current_battery_voltage = cs.battery_voltage  # battery voltage (volt)
+		self.current_battery_remaining = cs.battery_remaining  # battery remaining (%) *
+        self.current_armed = cs.armed  # armed state (1:armed, 0:disarmed) *
+        self.current_altitude_error = cs.alt_error  # altitude error (m)
 
         self.current_accel = []
         self.current_accel.append(cs.ax)
@@ -294,15 +296,19 @@ class Craft:
     con = Config()
 
     # RC input [pin, min, max] - check direction
+	# default channel maps (1:roll, 2:pitch, 3:throttle, 4:yaw)
+	# note: check directions
     rc_throttle = [con.rc_throttle_pin, Script.GetParam('RC3_MIN'), Script.GetParam('RC3_MAX')]
-    rc_pitch = [con.rc_pitch_pin, Script.GetParam('RC4_MIN'), Script.GetParam('RC4_MAX')]  # B
-    rc_roll = [con.rc_roll_pin, Script.GetParam('RC5_MIN'), Script.GetParam('RC5_MAX')]
-    rc_yaw = [con.rc_yaw_pin, Script.GetParam('RC6_MIN'), Script.GetParam('RC6_MAX')]
+    rc_pitch = [con.rc_pitch_pin, Script.GetParam('RC2_MIN'), Script.GetParam('RC2_MAX')]
+    rc_roll = [con.rc_roll_pin, Script.GetParam('RC1_MIN'), Script.GetParam('RC1_MAX')]
+    rc_yaw = [con.rc_yaw_pin, Script.GetParam('RC4_MIN'), Script.GetParam('RC4_MAX')]
+	
     # ESC output [pin, min, max]
-    # esc_f = [esc_f_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_b = [esc_b_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_l = [esc_l_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
-    # esc_r = [esc_r_pin, Script.GetParam('esc_min'), Script.GetParam('esc_max')]
+	# motor layout: (1:right, 2:left, 3:front, 4:back)
+    esc_f = [esc_f_pin, Script.GetParam('RC7_MIN'), Script.GetParam('RC7_MAX')]
+    esc_b = [esc_b_pin, Script.GetParam('RC8_MIN'), Script.GetParam('RC8_MAX')]
+    esc_l = [esc_l_pin, Script.GetParam('RC9_MIN'), Script.GetParam('RC9_MAX')]
+    esc_r = [esc_r_pin, Script.GetParam('RC10_MIN'), Script.GetParam('RC10_MAX')]
 
     # State variables:
     armed = False
@@ -613,6 +619,13 @@ class Craft:
     # - modes end -
 
     # - parameters -
+	# 
+	def params_rc_setup():
+		Script.ChangeParam("RC7_FUNCTION", 33)
+		Script.ChangeParam("RC8_FUNCTION", 34)
+		Script.ChangeParam("RC9_FUNCTION", 35)
+		Script.ChangeParam("RC10_FUNCTION", 36)
+
     # Sets default flight configuration PID values.
     # Todo: incomplete FIX
     # Mission critical: yes
@@ -655,6 +668,14 @@ class Craft:
         if self.con.disable_gps_on_start:
             self.params_gps(False)
     # - parameters end - 
+	
+	
+	# Monitor onboard battery and output periodic updates to log
+	# Checks 
+	# 
+	def battery_monitor(self):
+		pass
+		
 
     # Runs at script start.  Checks basic current craft setup.
     # Will pass if the craft is setup correctly for script control.
@@ -728,7 +749,7 @@ class Rocket:
     # Tested: no
     def wait_for_recover(self):
         self.log.log_data("mission class - wait for recovery")
-        # check sensors
+        # check sensors (roll and pitch within stable range??)
         # if level wait a few seconds
         # if still level then return
         self.log.log_data("mission class - craft recovered")
