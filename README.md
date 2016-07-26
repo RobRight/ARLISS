@@ -14,11 +14,10 @@ website: http://robright.github.io/ARLISS/
 ### main.py (main):
 -- [ARLISS/main.py](ARLISS/main.py) --
 ### payload_drop.py (payload_drop):
-[TestCode/drop_code/payload_drop.py] (TestCode/drop_code/payload_drop.py)<br />
+[other/drop_code/payload_drop.py] (other/drop_code/payload_drop.py)<br />
 <br />
 ## Code Example:
  -------------------------------------------------------------------------------------- <br />
-<br />
 ```python
 def ma_01(self):
 	self.log.log_data("MA_01 begin")
@@ -83,7 +82,8 @@ MAV.doCommand(command);  - MAVLink Mission Command Messages (not tested)<br />
 -command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/<br />
 Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))<br />
 <br />
-## More links: (posibly outdated)
+## More links:
+(posibly outdated)<br />
  -------------------------------------------------------------------------------------- <br />
 wayoints from code: http://diydrones.com/forum/topics/how-to-python-script-a-time-based-flight-plan <br />
 MissionPlanner: http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/ <br />
