@@ -63,23 +63,23 @@ Information about ArduPilot (copter) python commands:<br />
 --------------------------------------------------------------------------------------<br />
 cs.x<br />
 -----------<br />
-* example: mode, armed, etc.<br />
-* more info here: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
+example: mode, armed, etc.<br />
+more info here: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
 <br />
 Script.x<br />
 -----------<br />
 Script.ChangeParam(name,value) - change a parameter value<br />
 Script.GetParam(name) - read a parameter value<br />
-* copter parameters: http://ardupilot.org/copter/docs/parameters.html<br />
+copter parameters: http://ardupilot.org/copter/docs/parameters.html<br />
 Script.ChangeMode(mode)<br />
-* copter modes: http://ardupilot.org/copter/docs/flight-modes.html<br />
+copter modes: http://ardupilot.org/copter/docs/flight-modes.html<br />
 Script.SendRC(channel,pwm,sendnow) - set RC channel to value<br />
 Script.WaitFor(string,timeout) - (not tested)<br />
 <br />
 MAV.x<br />
 -----------<br />
 MAV.doCommand(command);  - MAVLink Mission Command Messages (not tested)<br />
-* command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/<br />
+command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/<br />
 Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))<br />
 <br />
 ## More links:
@@ -93,9 +93,9 @@ Plane Parameters: http://plane.ardupilot.com/wiki/arduplane-parameters/ <br />
 MAVLink Common Message Set: https://pixhawk.ethz.ch/mavlink/ <br />
 MAVLink Mission Command Messages: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/ <br />
 GPS math stuff: Offset by distance: <br />
- * http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
- * http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
+* http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
+* http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
 SITL: http://ardupilot.org/dev/docs/sitl-simulator-software-in-the-loop.html <br />
- * SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
- * SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
+* SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
+* SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
  -------------------------------------------------------------------------------------- <br />
