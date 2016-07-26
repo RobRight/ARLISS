@@ -15,8 +15,34 @@ website: http://robright.github.io/ARLISS/
 -- [ARLISS/main.py](ARLISS/main.py) --
 ### payload_drop.py (payload_drop):
 [TestCode/drop_code/payload_drop.py] (TestCode/drop_code/payload_drop.py)<br />
+<br />
+## Code Example:
  -------------------------------------------------------------------------------------- <br />
+<br />
+```python
+def ma_01(self):
+	self.log.log_data("MA_01 begin")
+	# setup mission
+	self.setup_mission()
+	# wait for rocket launch
+	while self.sta.rocket_launced == False:
+		self.roc.detect_launch()
+	# wait for payload release
+	while self.sta.rocket_payload_released == False:
+		self.roc.detect_ejection()
+	# recovery phase
+	self.roc.recover()
+	# navigation phase
+	self.cra.navigation_manager(self.con.loc_brd_target, log_alt[0])
+	# landing phase
+	self.cra.change_mode_landing()
+	# mission complete
+	self.end_mission()
+	self.log.log_data("MA_01 complete")
+```
+<br />
 ## Useful Links:
+ -------------------------------------------------------------------------------------- <br />
 general:<br />
 	- ArduCopter: http://ardupilot.org/copter/index.html<br />
 	- Python and Mission Planner: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
@@ -56,56 +82,6 @@ MAV.x<br />
 MAV.doCommand(command);  - MAVLink Mission Command Messages (not tested)<br />
 -command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/<br />
 Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))<br />
- -------------------------------------------------------------------------------------- <br />
-<br />
-## Code Example:<br />
-```python
-# call at mission start
-	def start():
-		flight_mode = 0
-		launch_pos = [sen.current_lat, sen.current_lon]
-		launch_alt = sen.current_altitude
-	
-	# fly to waypoint
-	def directed_flight():
-		mov.set_waypoint(target_pos, alt)
-
-# ------------
-# mission code
-# ------------
-def main_run():
-	start()
-	# test until rocket launched
-	while rocket_launched == false:
-		if sen.current_altitude>start_alt+1000: rocket_launched = True
-	print("rocket launched")
-	
-	# test until rocket ejected
-	while ejected == false:
-		if sen.current_altitude>max_alt: max_alt = sen.current_altitude
-		if sen.current_altitude<max_alt+200: ejected = True # NOTE: maybe use accelerometer
-	print("quad ejected")
-	ejected_pos = [sen.curren_lat, sen.curren_lon]
-	
-	# wait until recovery start alt
-	while sen.current_altitude>recovery_start_alt:
-		# recover craft!!
-		#if stable: recovered = True
-		pass
-	
-	# navigate to target
-	navigation_phase = True
-	while navigation_phase:
-		# set succsessive waypoints leading to target or just target waypoint??
-		mov.set_waypoint(target_pos, landing_start_alt+1000)
-		if sen.current_altitude < landing_start_alt:
-			#if distance_to_target < landing_start_dist:
-				navigation_phase = False
-
-	if (mov.land_craft()):
-		print("mission complete")
-	
-```
 <br />
 ## More links: (posibly outdated)
  -------------------------------------------------------------------------------------- <br />
