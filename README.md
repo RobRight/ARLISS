@@ -5,12 +5,12 @@ website: http://robright.github.io/ARLISS/
 ## Directory Outline:
  -------------------------------------------------------------------------------------- <br />
 <b>ARLISS:</b> only offical flight code here <br />
-	- main.py: mission code<br />
-	- info<br />
-	- test<br />
+	* main.py: mission code<br />
+	* info<br />
+	* test<br />
 <b>other:</b> generic test code <br />
-	- Other tests <br />
-	- Drop code <br />
+	* Other tests <br />
+	* Drop code <br />
 ### main.py (main):
 -- [ARLISS/main.py](ARLISS/main.py) --
 ### payload_drop.py (payload_drop):
@@ -43,43 +43,43 @@ def ma_01(self):
 ## Useful Links:
  -------------------------------------------------------------------------------------- <br />
 general:<br />
-	- ArduCopter: http://ardupilot.org/copter/index.html<br />
-	- Python and Mission Planner: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
+	* ArduCopter: http://ardupilot.org/copter/index.html<br />
+	* Python and Mission Planner: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
 <br />
 parameters: http://ardupilot.org/copter/docs/parameters.html<br />
 flight modes: http://ardupilot.org/copter/docs/flight-modes.html<br />
 waypoints: http://www.diydrones.com/forum/topics/mission-planner-python-script<br />
 <br />
 calculations:<br />
-	- generate new location: http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters<br />
-	- direction to: http://www.movable-type.co.uk/scripts/latlong.html<br />
+	* generate new location: http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters<br />
+	* direction to: http://www.movable-type.co.uk/scripts/latlong.html<br />
 <br />
 logging:<br />
-	- http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary<br />
-	- http://askubuntu.com/questions/138922/path-to-user-desktop-using-python<br />
+	* http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary<br />
+	* http://askubuntu.com/questions/138922/path-to-user-desktop-using-python<br />
 <br />
 ## Python Reference:
 Information about ArduPilot (copter) python commands:<br />
 --------------------------------------------------------------------------------------<br />
 cs.x<br />
 -----------<br />
-- example: mode, armed, etc.<br />
-- more info here: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
+* example: mode, armed, etc.<br />
+* more info here: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
 <br />
 Script.x<br />
 -----------<br />
 Script.ChangeParam(name,value) - change a parameter value<br />
 Script.GetParam(name) - read a parameter value<br />
-- copter parameters: http://ardupilot.org/copter/docs/parameters.html<br />
+* copter parameters: http://ardupilot.org/copter/docs/parameters.html<br />
 Script.ChangeMode(mode)<br />
-- copter modes: http://ardupilot.org/copter/docs/flight-modes.html<br />
+* copter modes: http://ardupilot.org/copter/docs/flight-modes.html<br />
 Script.SendRC(channel,pwm,sendnow) - set RC channel to value<br />
 Script.WaitFor(string,timeout) - (not tested)<br />
 <br />
 MAV.x<br />
 -----------<br />
 MAV.doCommand(command);  - MAVLink Mission Command Messages (not tested)<br />
--command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/<br />
+* command messages here: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/<br />
 Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))<br />
 <br />
 ## More links:
@@ -93,9 +93,9 @@ Plane Parameters: http://plane.ardupilot.com/wiki/arduplane-parameters/ <br />
 MAVLink Common Message Set: https://pixhawk.ethz.ch/mavlink/ <br />
 MAVLink Mission Command Messages: http://plane.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/ <br />
 GPS math stuff: Offset by distance: <br />
- - http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
- - http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
+ * http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters <br />
+ * http://gis.stackexchange.com/questions/5821/calculating-lat-lng-x-miles-from-point <br />
 SITL: http://ardupilot.org/dev/docs/sitl-simulator-software-in-the-loop.html <br />
- - SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
- - SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
+ * SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
+ * SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
  -------------------------------------------------------------------------------------- <br />
