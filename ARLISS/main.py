@@ -19,8 +19,8 @@
 # - add battery monitor function w/ periodic update
 # - add periodic status report. distance to target.  distance covered. 
 # - add periodic checks that craft is stable and on track
+# - add check for GPS status and GPS dependant modes
 #
-
 
 import math  # math
 import os  # log file path
@@ -32,7 +32,6 @@ clr.AddReference("MAVLink")  # includes the Utilities class
 import MissionPlanner
 from MissionPlanner.Utilities import Locationwp
 import MAVLink  # needed?
-
 
 # ------------------------------------------------------
 # mission options:
@@ -51,7 +50,6 @@ import MAVLink  # needed?
 # (brd) Black Rock Desert - not implemented
 # ------------------------------------------------------
 
-
 #
 # Config Class
 # ------------------------------------------------------
@@ -60,14 +58,14 @@ import MAVLink  # needed?
 # 
 class Config:
     # - general settings -
-    mission_mode = "t2"  # specific mission to run.  see options above. (0)
+    mission_mode = "t2"  # MC - specific mission to run.  see options above. (0)
     location = "dem"  # flying locaion.  default: dem (demonte ranch)
     run_test = False # sensor and file testing. (False)
     require_disarm = False  # check at start to require disarm.  False is starting in air. (False)
     disable_gps_on_start = False  # True to disable GPS on code start.  (False)
     # navigation
-    jump_distance = 100  # distance to jump each time. - needs testing. (100)
-    jump_alt = 80  # verticle distance to jump. - needs testing. (80)
+    jump_distance = 100  # MC - distance to jump each time. - needs testing. (100)
+    jump_alt = 80  # MC - verticle distance to jump. - needs testing. (80)
     # recovery
     recover_arm = False  # when recovering craft, set True to arm first. (False)
     wait_recov = True  # wait until recovered. - needs work (True)
@@ -76,9 +74,9 @@ class Config:
     default_takeoff_alt = 20  # distance in meters from starting location to reach in takeoff. (20 m)
     default_takeoff_speed = 2  # vertial speed goal during takeoff in meters per second. (2 m/s)
     # land
-    desired_vert_speed = -0.2 # once vertial speed drops below this value, assume landed. (-0.2 m/s)
+    desired_vert_speed = -0.2 # MC - once vertial speed drops below this value, assume landed. (-0.2 m/s)
     # waypoints
-    waypoint_tolerance = 5  # distance away from waypoints in meteres to consider it completed. (5 m)
+    waypoint_tolerance = 5  # MC - distance away from waypoints in meteres to consider it completed. (5 m)
     # ---------------------------
     # - testing class -
     # test_arm function
@@ -99,16 +97,16 @@ class Config:
     recover_test_sleep = 3  # sleep time to allow free fall in seconds (3 s)
     fly_back_home = True  # RTL after recovery test (True)
     # - logging class -
-    log_enable = True  # enable file logging (True)
+    log_enable = True  # MC - enable file logging (True)
     print_enable = True  # enable console logging (True)
     default_name = "log_file"  # file log filename prefix ("log_file")
     # - move class -
     # min distance from waypoint before moving on
     # rc pins
-    rc_throttle_pin = 3  # (3) rc throttle pin
-    rc_pitch_pin = 2  # (2) rc pitch pin
-    rc_roll_pin = 1  # (1) roll pin
-    rc_yaw_pin = 4  # (4) yaw pin
+    rc_throttle_pin = 3  # MC - (3) rc throttle pin
+    rc_pitch_pin = 2  # MC - (2) rc pitch pin
+    rc_roll_pin = 1  # MC - (1) roll pin
+    rc_yaw_pin = 4  # MC - (4) yaw pin
     # esc pins
     esc_f_pin = 3  # (3) - not implemented
     esc_b_pin = 4  # (4) - not implemented
@@ -116,6 +114,8 @@ class Config:
     esc_r_pin = 1  # (1) - not implemented
     # ---------------------------
     # locations: [latitude, longitude]
+	# black rock desert
+	loc_brd_target = [0.0, 0.0]
     # random
     loc_rand_unr = [39.550409, -119.809378]  # UNR
     loc_rand_tahoe = [39.221711, -119.928340]  # Lake Tahoe
@@ -132,6 +132,20 @@ class Config:
         [39.413872, -119.736562],  # 8
         [39.412644, -119.736585],  # 9
         [39.413439, -119.735824]]  # 10
+
+
+# state variables
+class State:
+    # [start, launch, eject, recover, land]
+    start_time = [0, 0, 0, 0, 0]
+    start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+    start_alt = [0, 0, 0, 0, 0]
+    landed = False
+	
+    mission_begin = False
+	rocket_launched = False
+	rocket_payload_released = False
+    mission_complete = False
 
 
 #
@@ -955,15 +969,8 @@ class Mission:
     log = Logging()
     test = Testing()
     con = Config()
-
-    # state variables
-    # [start, launch, eject, recover, land]
-    start_time = [0, 0, 0, 0, 0]
-    start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
-    start_alt = [0, 0, 0, 0, 0]
-    landed = False
-    mission_begin = False
-    mission_complete = False
+	roc = Rocket()
+	sta = State()
 
     # init
     def __init__(self):
@@ -989,19 +996,52 @@ class Mission:
     # Tested: no
     def setup(self):
         self.reset_values()
-        # log starting data
+        self.log.log_data("mission class - setup complete")
+	
+	# setup at start of mission alpha
+    # 
+    # Mission critical: yes
+    # Tested: no
+	def setup_mission(self):
+	# (config and params)
+		self.sta.mission_begin = True
+		# log starting data
         self.sen.get_data()  # update
         self.start_time[0] = self.sen.current_time
         self.start_pos[0] = [self.sen.current_lat,  self.sen.current_lng]
         self.start_alt = self.sen.current_altitude
-        self.log.log_data("mission class - setup complete")
+	
+	# wrapup at end of mission alpha
+    # 
+    # Mission critical: yes
+    # Tested: no
+	def end_mission(self):
+		self.sta.mission_complete = True
 
     # Mission Alpha 01 - ARLISS main mission run function
     # 
     # Mission critical: yes
     # Tested: no
     def ma_01(self):
-        pass
+		self.log.log_data("MA_01 begin")
+		# setup mission
+		self.setup_mission()
+        # wait for rocket launch
+		while self.sta.rocket_launced == False:
+			self.roc.detect_launch()
+		# wait for payload release
+		while self.sta.rocket_payload_released == False:
+			self.roc.detect_ejection()
+		# recovery phase
+		self.roc.recover()
+		# navigation phase
+		self.cra.navigation_manager(self.con.loc_brd_target, log_alt[0])
+		# landing phase
+		self.cra.change_mode_landing()
+		# mission complete
+		self.end_mission()
+		self.log.log_data("MA_01 complete")
+		
 
     # run mission
     # 
