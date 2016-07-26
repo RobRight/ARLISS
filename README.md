@@ -3,7 +3,7 @@
 website: http://robright.github.io/ARLISS/
 
 ## Directory Outline:
- -------------------------------------------------------------------------------------- <br />
+-------------------------------------------------------------------------------------- <br />
 <b>ARLISS:</b> only offical flight code here <br />
 	* main.py: mission code<br />
 	* info<br />
@@ -17,7 +17,7 @@ website: http://robright.github.io/ARLISS/
 [other/drop_code/payload_drop.py] (other/drop_code/payload_drop.py)<br />
 <br />
 ## Code Example:
- -------------------------------------------------------------------------------------- <br />
+-------------------------------------------------------------------------------------- <br />
 ```python
 def ma_01(self):
 	self.log.log_data("MA_01 begin")
@@ -41,7 +41,7 @@ def ma_01(self):
 ```
 <br />
 ## Useful Links:
- -------------------------------------------------------------------------------------- <br />
+-------------------------------------------------------------------------------------- <br />
 general:<br />
 	* ArduCopter: http://ardupilot.org/copter/index.html<br />
 	* Python and Mission Planner: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html<br />
@@ -84,7 +84,7 @@ Script.Sleep(ms) - sleep time in milliseconds (I use time.sleep(s))<br />
 <br />
 ## More links:
 (posibly outdated)<br />
- -------------------------------------------------------------------------------------- <br />
+-------------------------------------------------------------------------------------- <br />
 wayoints from code: http://diydrones.com/forum/topics/how-to-python-script-a-time-based-flight-plan <br />
 MissionPlanner: http://planner.ardupilot.com/wiki/using-python-scripts-in-mission-planner/ <br />
 ArduPilot: http://ardupilot.com/ <br />
@@ -98,4 +98,3 @@ GPS math stuff: Offset by distance: <br />
 SITL: http://ardupilot.org/dev/docs/sitl-simulator-software-in-the-loop.html <br />
  * SITL on Linux: http://dev.ardupilot.com/wiki/setting-up-sitl-on-linux/ <br />
  * SITL on Window in Linux VM: http://dev.ardupilot.com/wiki/setting-up-sitl-on-windows/ <br />
- -------------------------------------------------------------------------------------- <br />
