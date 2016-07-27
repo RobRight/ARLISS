@@ -20,6 +20,8 @@
 # - add periodic status report. distance to target.  distance covered. 
 # - add periodic checks that craft is stable and on track
 # - add check for GPS status and GPS dependant modes
+# - discuss adding sonar to the craft
+# - test altitude reading when GPS is disabled
 #
 
 import math  # math
@@ -32,6 +34,7 @@ clr.AddReference("MAVLink")  # includes the Utilities class
 import MissionPlanner
 from MissionPlanner.Utilities import Locationwp
 import MAVLink  # needed?
+
 
 # ------------------------------------------------------
 # mission options:
@@ -77,6 +80,8 @@ class Config:
     desired_vert_speed = -0.2 # MC - once vertial speed drops below this value, assume landed. (-0.2 m/s)
     # waypoints
     waypoint_tolerance = 5  # MC - distance away from waypoints in meteres to consider it completed. (5 m)
+    # launch detection
+    launch_trigger_altitude = 100 # altitude in meters from ground to agnolage launch (500 m)
     # ---------------------------
     # - testing class -
     # test_arm function
@@ -114,8 +119,8 @@ class Config:
     esc_r_pin = 1  # (1) - not implemented
     # ---------------------------
     # locations: [latitude, longitude]
-	# black rock desert
-	loc_brd_target = [0.0, 0.0]
+    # black rock desert
+    loc_brd_target = [0.0, 0.0]
     # random
     loc_rand_unr = [39.550409, -119.809378]  # UNR
     loc_rand_tahoe = [39.221711, -119.928340]  # Lake Tahoe
@@ -141,11 +146,13 @@ class State:
     start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
     start_alt = [0, 0, 0, 0, 0]
     landed = False
-	
+    
     mission_begin = False
-	rocket_launched = False
-	rocket_payload_released = False
+    rocket_launched = False
+    rocket_payload_released = False
     mission_complete = False
+    
+    test = "blank"
 
 
 #
@@ -160,9 +167,9 @@ class Logging:
     start_time = ()  # assigned at start by 'Mission' class
 
     # set directory and create folder if not found
-    # Tested: no
+    # Tested: PASS-WG-07/26
     def __init__(self):
-        # TEMP, FIX
+        # script start time. seperate from mission start time in State class
         self.start_time = time.localtime()
 
         self.directory = os.path.expanduser('~') + "\Documents\CODE_LOGS"
@@ -170,7 +177,7 @@ class Logging:
             os.makedirs(self.directory)
 
     # generate a file name directory and time stanp
-    # Tested: no
+    # Tested: PASS-WG-07/26
     def generate_filename(self, given):
         filename = given + "_" + time.strftime("%m_%d_%y__%H_%M_%S", self.start_time)
         filename2 = os.path.join(self.directory, filename + ".txt")
@@ -185,7 +192,7 @@ class Logging:
             f.close()
 
     # write given data to file
-    # Tested: no
+    # Tested: PASS-WG-07/26
     def log_data(self, in_data):
         if self.con.log_enable:
             filename = self.generate_filename(self.con.default_name)
@@ -235,7 +242,7 @@ class Sensors:
     current_gps_stat = 0.0
     current_gps_count = 0.0
     current_battery_voltage = 0.0
-	current_battery_remaining = 0.0
+    current_battery_remaining = 0.0
     current_armed = False
     current_altitude_error = 0.0
     current_accel = []
@@ -270,7 +277,7 @@ class Sensors:
         self.current_gps_stat = cs.gpsstatus  # GPS status (not sure.. 3 for 3D fix?) *
         self.current_gps_count = cs.satcount  # satellite count (#)
         self.current_battery_voltage = cs.battery_voltage  # battery voltage (volt)
-		self.current_battery_remaining = cs.battery_remaining  # battery remaining (%) *
+        self.current_battery_remaining = cs.battery_remaining  # battery remaining (%) *
         self.current_armed = cs.armed  # armed state (1:armed, 0:disarmed) *
         self.current_altitude_error = cs.alt_error  # altitude error (m)
 
@@ -308,21 +315,22 @@ class Craft:
     sen = Sensors()
     log = Logging()
     con = Config()
+    sta = State()
 
     # RC input [pin, min, max] - check direction
-	# default channel maps (1:roll, 2:pitch, 3:throttle, 4:yaw)
-	# note: check directions
+    # default channel maps (1:roll, 2:pitch, 3:throttle, 4:yaw)
+    # note: check directions
     rc_throttle = [con.rc_throttle_pin, Script.GetParam('RC3_MIN'), Script.GetParam('RC3_MAX')]
     rc_pitch = [con.rc_pitch_pin, Script.GetParam('RC2_MIN'), Script.GetParam('RC2_MAX')]
     rc_roll = [con.rc_roll_pin, Script.GetParam('RC1_MIN'), Script.GetParam('RC1_MAX')]
     rc_yaw = [con.rc_yaw_pin, Script.GetParam('RC4_MIN'), Script.GetParam('RC4_MAX')]
-	
+    
     # ESC output [pin, min, max]
-	# motor layout: (1:right, 2:left, 3:front, 4:back)
-    esc_f = [esc_f_pin, Script.GetParam('RC7_MIN'), Script.GetParam('RC7_MAX')]
-    esc_b = [esc_b_pin, Script.GetParam('RC8_MIN'), Script.GetParam('RC8_MAX')]
-    esc_l = [esc_l_pin, Script.GetParam('RC9_MIN'), Script.GetParam('RC9_MAX')]
-    esc_r = [esc_r_pin, Script.GetParam('RC10_MIN'), Script.GetParam('RC10_MAX')]
+    # motor layout: (1:right, 2:left, 3:front, 4:back)
+    esc_f = [con.esc_f_pin, Script.GetParam('RC7_MIN'), Script.GetParam('RC7_MAX')]
+    esc_b = [con.esc_b_pin, Script.GetParam('RC8_MIN'), Script.GetParam('RC8_MAX')]
+    esc_l = [con.esc_l_pin, Script.GetParam('RC9_MIN'), Script.GetParam('RC9_MAX')]
+    esc_r = [con.esc_r_pin, Script.GetParam('RC10_MIN'), Script.GetParam('RC10_MAX')]
 
     # State variables:
     armed = False
@@ -556,13 +564,14 @@ class Craft:
             self.sen.get_data()
             temp_armed = self.sen.current_armed
         self.change_mode_guided()
+        State.landed = True
         self.log.log_data("move class - landing complete")
         return True
 
     # engage landing
     # do not return until landing complete or timeout
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-WG-07/26
     def change_mode_landing(self):
         Script.ChangeMode('LAND')  # set mode to LAND
         self.wait_for_land()
@@ -581,13 +590,13 @@ class Craft:
     # change mode to guided
     # info: auto waypoint mode
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-WG-07/26
     def change_mode_guided(self):
         Script.ChangeMode('GUIDED')
         # Script.WaitFor('GUIDED', 5000)
 
     # return to launch site and land
-    # Mission critical: yes
+    # Mission critical: no
     # Tested: no
     def change_mode_rtl(self):
         Script.ChangeMode('RTL')
@@ -596,8 +605,8 @@ class Craft:
     # takeoff for testing and non-assisted flying
     # do not return until takeoff completes (or timeout NI)
     # note: desired vertical speed is 2
-    # Mission critical: yes
-    # Tested: no
+    # Mission critical: no
+    # Tested: PASS-WG-07/26
     def change_mode_takeoff(self):
         self.log.log_data("move class - begin takeoff")
         self.sen.get_data()
@@ -629,16 +638,20 @@ class Craft:
         self.change_mode_guided()
         self.set_waypoint([self.sen.current_lat, self.sen.current_lng], self.con.default_takeoff_alt)
         self.rc_reset_all()
+        State.landed = False
         self.log.log_data("move class - takeoff complete")
     # - modes end -
 
     # - parameters -
-	# 
-	def params_rc_setup():
-		Script.ChangeParam("RC7_FUNCTION", 33)
-		Script.ChangeParam("RC8_FUNCTION", 34)
-		Script.ChangeParam("RC9_FUNCTION", 35)
-		Script.ChangeParam("RC10_FUNCTION", 36)
+    # 
+    # Todo: incomplete FIX
+    # Mission critical: yes
+    # Tested: no
+    def params_rc_setup():
+        Script.ChangeParam("RC7_FUNCTION", 33)
+        Script.ChangeParam("RC8_FUNCTION", 34)
+        Script.ChangeParam("RC9_FUNCTION", 35)
+        Script.ChangeParam("RC10_FUNCTION", 36)
 
     # Sets default flight configuration PID values.
     # Todo: incomplete FIX
@@ -682,14 +695,14 @@ class Craft:
         if self.con.disable_gps_on_start:
             self.params_gps(False)
     # - parameters end - 
-	
-	
-	# Monitor onboard battery and output periodic updates to log
-	# Checks 
-	# 
-	def battery_monitor(self):
-		pass
-		
+    
+    
+    # Monitor onboard battery and output periodic updates to log
+    # Checks 
+    # 
+    def battery_monitor(self):
+        pass
+        
 
     # Runs at script start.  Checks basic current craft setup.
     # Will pass if the craft is setup correctly for script control.
@@ -742,38 +755,53 @@ class Rocket:
     cra = Craft()
     log = Logging()
     con = Config()
+    sta = State()
 
     def __init__(self):
         pass
 
-    # 
+    # Monitors altitude and returns once rocket launches
+    # note: add accelerometer check
     # Mission critical: yes
     # Tested: no
-    def detect_launch(self):
-        pass  # check acceleromiter or alitude
+    def wait_for_launch(self):
+        self.log.log_data("rocket class - wait for launch")
+        self.sen.get_data()
+        starting_alt = self.sen.current_altitude
+        launched = False
+        while launched == False:
+            self.sen.get_data()
+            if self.sen.current_altitude > (starting_alt + self.con.launch_trigger_altitude):
+                launched = True
+        State.start_time[1] = self.sen.current_time
+        State.start_pos[1] = [self.sen.current_lat, self.sen.current_lng]
+        State.start_alt[1] = self.sen.current_altitude
+        State.rocket_launced = True
+        self.log.log_data("rocket class - launch detected")
+
 
     # 
     # Mission critical: yes
     # Tested: no
-    def detect_ejection(self):
+    def wait_for_payload_release(self):
         pass  # check acceleromiter or alitude
 
     # 
     # Mission critical: yes
     # Tested: no
     def wait_for_recover(self):
-        self.log.log_data("mission class - wait for recovery")
+        self.log.log_data("rocket class - wait for recovery")
         # check sensors (roll and pitch within stable range??)
         # if level wait a few seconds
         # if still level then return
-        self.log.log_data("mission class - craft recovered")
+        self.log.log_data("rocket class - craft recovered")
 
     # 
     # Mission critical: yes
     # Tested: no
     def recover(self):
         # assumed terminal velocity: 35 to 40 m/s
-        self.log.log_data("mission class - recovery start")
+        self.log.log_data("rocket class - recovery start")
         if (self.con.recover_arm):
             self.cra.arm_craft()
         self.cra.change_mode_stabilize()
@@ -792,7 +820,7 @@ class Rocket:
             ## self.wait_for_recover()
         else:
             time.sleep(4)
-        self.log.log_data("mission_clas - recovery complete")
+        self.log.log_data("rocket class - recovery complete")
 
 
 #
@@ -866,7 +894,7 @@ class Testing:
     # test takeoff
     # 
     # Mission critical: no
-    # Tested: no
+    # Tested: PASS-WG-07/26
     def test_takeoff(self):
         self.log.log_data("test_takeoff - begin")
         if self.con.include_takeoff_t:
@@ -967,28 +995,28 @@ class Mission:
     cra = Craft()
     sen = Sensors()
     log = Logging()
-    test = Testing()
+    tes = Testing()
     con = Config()
-	roc = Rocket()
-	sta = State()
+    roc = Rocket()
+    sta = State()
 
     # init
     def __init__(self):
-        self.log.log_data("mission class - online")
+        pass
 
     # reset all variables
     # 
     # Mission critical: yes
     # Tested: no
     def reset_values(self):
-        # start, launch, eject, recover, land
-        self.start_time = [0, 0, 0, 0, 0]
-        self.start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
-        self.start_alt = [0, 0, 0, 0, 0]
         # state variables
-        self.landed = False
-        self.mission_begin = False
-        self.mission_complete = False
+        # start, launch, eject, recover, land
+        State.start_time = [0, 0, 0, 0, 0]
+        State.start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+        State.start_alt = [0, 0, 0, 0, 0]
+        State.landed = False
+        State.mission_begin = False
+        State.mission_complete = False
 
     # setup at start
     # 
@@ -997,51 +1025,49 @@ class Mission:
     def setup(self):
         self.reset_values()
         self.log.log_data("mission class - setup complete")
-	
-	# setup at start of mission alpha
+    
+    # setup at start of mission alpha
     # 
     # Mission critical: yes
     # Tested: no
-	def setup_mission(self):
-	# (config and params)
-		self.sta.mission_begin = True
-		# log starting data
+    def setup_mission(self):
+    # (config and params)
+        State.mission_begin = True
+        # log starting data
         self.sen.get_data()  # update
-        self.start_time[0] = self.sen.current_time
-        self.start_pos[0] = [self.sen.current_lat,  self.sen.current_lng]
-        self.start_alt = self.sen.current_altitude
-	
-	# wrapup at end of mission alpha
+        State.start_time[0] = self.sen.current_time
+        State.start_pos[0] = [self.sen.current_lat,  self.sen.current_lng]
+        State.start_alt[0] = self.sen.current_altitude
+    
+    # wrapup at end of mission alpha
     # 
     # Mission critical: yes
     # Tested: no
-	def end_mission(self):
-		self.sta.mission_complete = True
+    def end_mission(self):
+        State.mission_complete = True
 
     # Mission Alpha 01 - ARLISS main mission run function
     # 
     # Mission critical: yes
     # Tested: no
     def ma_01(self):
-		self.log.log_data("MA_01 begin")
-		# setup mission
-		self.setup_mission()
+        self.log.log_data("MA_01 begin")
+        # setup mission
+        self.setup_mission()
         # wait for rocket launch
-		while self.sta.rocket_launced == False:
-			self.roc.detect_launch()
-		# wait for payload release
-		while self.sta.rocket_payload_released == False:
-			self.roc.detect_ejection()
-		# recovery phase
-		self.roc.recover()
-		# navigation phase
-		self.cra.navigation_manager(self.con.loc_brd_target, log_alt[0])
-		# landing phase
-		self.cra.change_mode_landing()
-		# mission complete
-		self.end_mission()
-		self.log.log_data("MA_01 complete")
-		
+        self.roc.wait_for_launch()
+        # wait for payload release
+        self.roc.wait_for_payload_release()
+        # recovery phase
+        self.roc.recover()
+        # navigation phase
+        self.cra.navigation_manager(self.con.loc_brd_target, log_alt[0])
+        # landing phase
+        self.cra.change_mode_landing()
+        # mission complete
+        self.end_mission()
+        self.log.log_data("MA_01 complete")
+        
 
     # run mission
     # 
@@ -1054,15 +1080,15 @@ class Mission:
             self.log.log_data("mission class - exiting")
             return True
         elif (self.con.mission_mode == "t1"):  # test arm / disarm
-            self.test.test_arm()
+            self.tes.test_arm()
         elif (self.con.mission_mode == "t2"):  # test takeoff / landing
-            self.test.test_takeoff()
+            self.tes.test_takeoff()
         elif (self.con.mission_mode == "t3"):  # test waypoints
-            self.test.test_waypoints()
+            self.tes.test_waypoints()
         elif (self.con.mission_mode == "t4"):  # test recovery
-            self.test.test_recovery()
+            self.tes.test_recovery()
         elif (self.con.mission_mode == "t5"):  # test navigation
-            self.test.test_navigation()
+            self.tes.test_navigation()
         elif (self.con.mission_mode == "ma-01"):
             self.log.log_data("mission class - starting MissionAlpha-01")
             self.ma_01()
@@ -1094,9 +1120,9 @@ con = Config()
 
 if (con.run_test):
     log.log_data("run_test begin")
-    test = Testing()
-    test.test_filelog()
-    test.test_sensors()
+    tes = Testing()
+    tes.test_filelog()
+    tes.test_sensors()
     log.log_data("run_test complete")
 else:
     # start script
