@@ -145,14 +145,12 @@ class State:
     start_time = [0, 0, 0, 0, 0]
     start_pos = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
     start_alt = [0, 0, 0, 0, 0]
-    landed = False
     
     mission_begin = False
     rocket_launched = False
     rocket_payload_released = False
+    landed = False
     mission_complete = False
-    
-    test = "blank"
 
 
 #

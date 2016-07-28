@@ -24,11 +24,9 @@ def ma_01(self):
 	# setup mission
 	self.setup_mission()
 	# wait for rocket launch
-	while self.sta.rocket_launced == False:
-		self.roc.detect_launch()
+	self.roc.wait_for_launch()
 	# wait for payload release
-	while self.sta.rocket_payload_released == False:
-		self.roc.detect_ejection()
+	self.roc.wait_for_payload_release()
 	# recovery phase
 	self.roc.recover()
 	# navigation phase
