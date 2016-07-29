@@ -70,7 +70,8 @@ class Config:
     run_test = False # sensor and file testing. (False)
     require_disarm = False  # check at start to require disarm.  False is starting in air. (False)
     disable_gps_on_start = False  # True to disable GPS on code start.  (False)
-    # navigation
+    battery_update_interval = 2  # difference in percentage to update
+	# navigation
     jump_distance = 100  # MC - distance to jump each time. - needs testing. (100)
     jump_alt = 80  # MC - verticle distance to jump. - needs testing. (80)
     # recovery
@@ -155,6 +156,8 @@ class State:
     rocket_payload_released = False
     landed = False
     mission_complete = False
+	
+	last_battery = -1
 
 
 #
@@ -700,16 +703,22 @@ class Craft:
     
     
     # Monitor onboard battery and output periodic updates to log
-    # Checks 
-    # 
+    # Todo: add to mission loop
+	# Mission critical: no
+    # Tested: no
     def battery_monitor(self):
-        pass
+		self.sen.get_data()
+        temp_bat_remaining = self.sen.current_battery_remaining
+		if (self.sta.last_battery == -1):
+			State.last_battery = temp_bat_remaining
+		if (temp_bat_remaining < self.sta.last_battery - battery_update_interval):
+			self.log.log_data("move class - battery remaining: " + str(temp_bat_remaining))
         
 
     # Runs at script start.  Checks basic current craft setup.
     # Will pass if the craft is setup correctly for script control.
     # Checks: *armed, location, gps lock
-    # Todo: location will fail if not at demonte. FIX
+	# Todo: check will fail is no GPS lock.  MA_01 no GPS on start.  FIX
     # Mission critical: yes
     # Tested: no
     def check_ready(self):
@@ -1060,6 +1069,25 @@ class Mission:
         State.start_time[0] = self.sen.current_time
         State.start_pos[0] = [self.sen.current_lat,  self.sen.current_lng]
         State.start_alt[0] = self.sen.current_altitude
+		# setup config
+		Config.mission_mode = "ma-01"
+		Config.location = "brd"
+		Config.require_disarm = True
+		Config.disable_gps_on_start = True
+		Config.jump_distance = 100
+		Config.jump_alt = 80
+		Config.recover_arm = False
+		Config.wait_recov = True
+		Config.desired_vert_speed = -0.2
+		Config.waypoint_tolerance = 5
+		Config.launch_trigger_altitude = 100
+		Config.log_enable = True
+		Config.print_enable = True
+		Config.default_name = "log_file"
+		Config.rc_throttle_pin = 3
+		Config.rc_pitch_pin = 2
+		Config.rc_roll_pin = 1
+		Config.rc_yaw_pin = 4
     
     # wrapup at end of mission alpha
     # 
