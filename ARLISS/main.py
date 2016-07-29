@@ -60,6 +60,10 @@ import MAVLink  # needed?
 # general setttings, test settings, locations and FC pins
 # 
 class Config:
+	# --------------------------
+	# - preset testing option -
+	preset_config = "NA"  # options("NA", "dem_t5")
+	# --------------------------
     # - general settings -
     mission_mode = "t2"  # MC - specific mission to run.  see options above. (0)
     location = "dem"  # flying locaion.  default: dem (demonte ranch)
@@ -867,6 +871,26 @@ class Testing:
     # Tested: no
     def test_navigation_sub_functions(self):
         pass
+	
+	# setup config for navigation test
+	# Mission critical: no
+	# Tested: no
+	def test_setup_navigation(self):
+		Config.mission_mode = "t5"
+		Config.location = "dem"
+		Config.run_test = False
+		Config.require_disarm = False
+		Config.disable_gps_on_start = False
+		Config.jump_distance = 100
+		Config.jump_alt = 80
+		Config.waypoint_tolerance = 5
+		Config.log_enable = True
+		Config.print_enable = True
+		Config.default_name = "log_file"
+		Config.rc_throttle_pin = 3
+		Config.rc_pitch_pin = 2
+		Config.rc_roll_pin = 1
+		Config.rc_yaw_pin = 4
 
     # test arm and disarm - optional disarm (not tested)
     # 
@@ -1072,6 +1096,9 @@ class Mission:
     # Mission critical: yes
     # Tested: no
     def run_mission(self):
+		if (self.con.preset_config != "NA"):
+			if (self.con.preset_config == "dem_t5"):
+				self.tes.test_setup_navigation()
         self.log.log_data("mission class - running mission")
         if (self.con.mission_mode == "0"):  # no mission
             self.log.log_data("mission class - no mission to run")
