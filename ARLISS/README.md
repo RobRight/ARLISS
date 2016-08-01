@@ -12,10 +12,8 @@ Using Python 2.7 and Mission Planner
 - Testing: testing functions
 - *Mission: mission manager.  main class
 
-<br />
 *important
 
-<br />
 <br />
 ###Outline of Mission:
 1. In the rocket fairing on the ground
