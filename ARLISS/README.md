@@ -11,6 +11,7 @@ Using Python 2.7 and Mission Planner
 - Rocket: rocket specific functions
 - Testing: testing functions
 - Mission: mission manager.  main class
+
 <br />
 <br />
 ###Outline of Mission:
