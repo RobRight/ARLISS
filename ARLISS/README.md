@@ -1,5 +1,4 @@
-ARLISS - main.py - information <br />
-<br />
+#ARLISS - main.py - information
 Using Python 2.7 and Mission Planner
 <br />
 ###Classes:
@@ -11,6 +10,7 @@ Using Python 2.7 and Mission Planner
 - *Rocket: rocket specific functions
 - Testing: testing functions
 - *Mission: mission manager.  main class
+<br />
 *important
 
 ###Outline of Mission:
