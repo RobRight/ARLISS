@@ -14,7 +14,6 @@ Using Python 2.7 and Mission Planner
 
 *important
 
-<br />
 ###Outline of Mission:
 1. In the rocket fairing on the ground
 	* Idle
