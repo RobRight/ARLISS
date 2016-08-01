@@ -7,10 +7,12 @@ Using Python 2.7 and Mission Planner
 - State: global state variables
 - Logging: console and file output manager
 - Sensors: craft sensor manager
-- Craft: modes, navigation, etc.
-- Rocket: rocket specific functions
+- *Craft: modes, navigation, etc.
+- *Rocket: rocket specific functions
 - Testing: testing functions
-- Mission: mission manager.  main class
+- *Mission: mission manager.  main class
+<br /><br />
+*important
 
 <br />
 <br />
