@@ -1,7 +1,7 @@
-ARLISS - main.py - information <br/>
-<br/>
+ARLISS - main.py - information <br />
+<br />
 Using Python 2.7 and Mission Planner
-<br/>
+<br />
 ###Classes:
 - Config: settings for mission and specific functions
 - State: global state variables
@@ -11,10 +11,8 @@ Using Python 2.7 and Mission Planner
 - *Rocket: rocket specific functions
 - Testing: testing functions
 - *Mission: mission manager.  main class
-<br/><br/>
-*important
-<br/>
-<br/>
+<br />
+<br />
 ###Outline of Mission:
 1. In the rocket fairing on the ground
 	* Idle
