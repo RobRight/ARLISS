@@ -1,6 +1,8 @@
 ARLISS - main.py - information <br/>
 <br/>
-##Classes
+Using Python 2.7 and Mission Planner
+<br/>
+####Classes
 - Config: settings for mission and specific functions
 - State: global state variables
 - Logging: console and file output manager
