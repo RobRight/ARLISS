@@ -5,7 +5,9 @@ ARLISS - main.py - information <br/>
 - State: global state variables
 - Logging: console and file output manager
 - Sensors: craft sensor manager
-- Craft: modes, navigation, etc.
-- Rocket: rocket specific functions
+- *Craft: modes, navigation, etc.
+- *Rocket: rocket specific functions
 - Testing: testing functions
-- Mission: mission manager.  main class
+- *Mission: mission manager.  main class
+<br/>
+*important

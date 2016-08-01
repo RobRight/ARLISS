@@ -648,7 +648,7 @@ class Craft:
 
     # - parameters -
     # 
-    # To-do: incomplete FIX
+    # ToDo: incomplete FIX
     # Mission critical: yes
     # Tested: no
     def params_rc_setup():
@@ -658,7 +658,7 @@ class Craft:
         Script.ChangeParam("RC10_FUNCTION", 36)
 
     # Sets default flight configuration PID values.
-    # To-do: incomplete FIX
+    # ToDo: incomplete FIX
     # Mission critical: yes
     # Tested: no
     def params_pids_default(self):
@@ -690,7 +690,7 @@ class Craft:
 
     # Setup parameters for flight at script start.
     # Disable the fence, call 'params_failsafe_setup()', *disable GPS
-    # To-do: ensure all parameters are covered.  Possibly set redundant parameters as well.
+    # ToDo: ensure all parameters are covered.  Possibly set redundant parameters as well.
     # Mission critical: yes
     # Tested: no
     def params_setup(self):
@@ -702,7 +702,7 @@ class Craft:
     
     
     # Monitor on-board battery and output periodic updates to log
-    # To-do: add to mission loop
+    # ToDo: add to mission loop
 	# Mission critical: no
     # Tested: no
     def battery_monitor(self):
@@ -717,7 +717,7 @@ class Craft:
     # Runs at script start.  Checks basic current craft setup.
     # Will pass if the craft is setup correctly for script control.
     # Checks: *armed, location, GPS lock
-	# To-do: check will fail is no GPS lock.  MA_01 no GPS on start.  FIX
+	# ToDo: check will fail is no GPS lock.  MA_01 no GPS on start.  FIX
     # Mission critical: yes
     # Tested: no
     def check_ready(self):
