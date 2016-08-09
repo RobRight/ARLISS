@@ -1,27 +1,30 @@
 # 
-#
 # UNR ARLISS 2016 Mission Script 
-# Autonomous navigation and control of quad-rotor using Pixhawk flight controller (FC)
+# Autonomous navigation and control of quad-rotor using Pixhawk flight controller
 #
-# 7/1/2016 to current
+# Date: 7/1/2016 to present
 #
-# Info: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
 # GitHub: https://github.com/robright/arliss
+# MP command info: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
 #
 # ToDo:
-# - disable GPS before and during launch - test
-# - detect launch (barometer, accelerometer)
-# - detect rocket ejection (accelerometer, altitude, vertical speed)
+# - disable GPS before launch; get fix once payload released (recovered?) - test
+# - detect launch (barometer!, accelerometer)
+# - detect rocket ejection (accelerometer(possibly saturated), barometer, vertical speed(available wo GPS?)
 # - test parameter manage function (GPS, Fail-safes)
-# - complete parameter manage for PIDs
-# - test arming in mid-flight (pre-arm checks)
-# - add state variables class??
+# - complete parameter manage for PIDs (separate PIDs for recovery and navigation?)
+# - test arming in mid-flight (pre-arm checks) (else arm on ground)
 # - add battery monitor function w/ periodic update
-# - add periodic status report. distance to target.  distance covered. 
-# - add periodic checks that craft is stable and on track
-# - add check for GPS status and GPS dependent modes
-# - discuss adding sonar to the craft
-# - test altitude reading when GPS is disabled using barometer
+# - add periodic status report. distance to target.  distance covered.  own log file?
+# - add periodic checks that craft is stable and on track (maybe)
+# - add check for GPS status and GPS dependent modes (warning when GPS required and disabled)
+# - discuss adding sonar to the craft for landing
+# - test altitude reading when GPS is disabled using barometer (same sensor variable?)
+# - look into Python memory management
+# - complete Rocket class functions
+# - add lots of useful comments
+# - add more 'preset_options'
+# - prefix Config variable names with the function they are used with
 #
 
 import math  # math
@@ -37,6 +40,11 @@ import MAVLink  # needed?
 
 
 # ------------------------------------------------------
+# preset options:
+# -----------------------
+# ("NA") do not use preset
+# ("dem_t5") run t5 mission with default parameters
+
 # mission options:
 # -----------------
 # (0) no mission
@@ -61,7 +69,7 @@ import MAVLink  # needed?
 # 
 class Config:
     # --------------------------
-    # - preset testing option -
+    # - preset option -
     preset_config = "NA"  # options("NA", "dem_t5")
     # --------------------------
     # - general settings -
@@ -108,8 +116,8 @@ class Config:
     fly_back_home = True  # RTL after recovery test (True)
     # - logging class -
     log_enable = True  # MC - enable file logging (True)
-    print_enable = True  # enable console logging (True)
-    default_name = "log_file"  # file log filename prefix ("log_file")
+    log_print_enable = True  # enable console logging (True)
+    log_default_name = "log_file"  # file log filename prefix ("log_file")
     # - move class -
     # min distance from way-point before moving on
     # RC pins
@@ -157,6 +165,7 @@ class State:
     landed = False
     mission_complete = False
     
+	gps_enabled = False
     last_battery = -1
 
 
@@ -172,7 +181,7 @@ class Logging:
     start_time = ()  # assigned at start by 'Mission' class
 
     # set directory and create folder if not found
-    # Tested: PASS-WG-07/26
+    # Tested: PASS-SITL-07/26
     def __init__(self):
         # script start time. separate from mission start time in State class
         self.start_time = time.localtime()
@@ -182,7 +191,7 @@ class Logging:
             os.makedirs(self.directory)
 
     # generate a file name with time and directory
-    # Tested: PASS-WG-07/26
+    # Tested: PASS-SITL-07/26
     def generate_filename(self, given):
         filename = given + "_" + time.strftime("%m_%d_%y__%H_%M_%S", self.start_time)
         filename2 = os.path.join(self.directory, filename + ".txt")
@@ -197,7 +206,7 @@ class Logging:
             f.close()
 
     # write given data to file
-    # Tested: PASS-WG-07/26
+    # Tested: PASS-SITL-07/26
     def log_data(self, in_data):
         if self.con.log_enable:
             filename = self.generate_filename(self.con.default_name)
@@ -205,7 +214,7 @@ class Logging:
             current_time = time.strftime("%H_%M_%S: ", time.localtime())
             f.write(current_time + in_data + "\n")
             f.close()
-        if self.con.print_enable is True:
+        if self.con.log_print_enable is True:
             print(in_data);
     
     # write given data to file with given name
@@ -216,7 +225,7 @@ class Logging:
             f = open(filename, 'a')
             f.write(in_data + "\n")
             f.close()
-        if self.com.print_enable is True:
+        if self.com.log_print_enable is True:
             print(in_name + ": " + in_data)
 
 
@@ -463,7 +472,7 @@ class Craft:
     # input: start_loc: [lat, lon], dist: distance in meters, dir: direction in degrees
     # 
     # Mission critical: yes
-    # Tested: PASS-WG-07/21
+    # Tested: PASS-ISOLATED-07/21
     def generate_location(self, start_loc, dist, dir):
         # Earths radius, sphere
         R=6378137
@@ -557,13 +566,16 @@ class Craft:
     # Tested: no
     def wait_for_land(self):
         self.log.log_data("move class - waiting for land")
+		# wait for craft to begin landing
         time.sleep(2)
         landing = True
         while landing:
             self.sen.get_data()
+			# craft vertical speed within touchdown range
             if self.sen.current_vertical_speed < 0.0 and self.sen.current_vertical_speed > self.con.desired_vert_speed:
                 landing = False
         temp_armed = True
+		# wait for auto disarm
         while temp_armed:
             self.sen.get_data()
             temp_armed = self.sen.current_armed
@@ -572,10 +584,10 @@ class Craft:
         self.log.log_data("move class - landing complete")
         return True
 
-    # engage landing
-    # do not return until landing complete or timeout
+    # change to landing mode
+    # does not return until landing complete (or timeout - NI)
     # Mission critical: yes
-    # Tested: PASS-WG-07/26
+    # Tested: PASS-SITL-07/26
     def change_mode_landing(self):
         Script.ChangeMode('LAND')  # set mode to LAND
         self.wait_for_land()
@@ -588,13 +600,17 @@ class Craft:
         Script.ChangeMode('LOITER')
         # Script.WaitFor('LOITER', 5000)  # whats this do?
 
+	# change mode to stabilize
+    # info: self-levels the roll and pitch axis.  allows RC input
+    # Mission critical: ~
+    # Tested: no
     def change_mode_stabilize(self):
         Script.ChangeMode('STABILIZE')
 
     # change mode to guided
     # info: auto way-point mode
     # Mission critical: yes
-    # Tested: PASS-WG-07/26
+    # Tested: PASS-SITL-07/26
     def change_mode_guided(self):
         Script.ChangeMode('GUIDED')
         # Script.WaitFor('GUIDED', 5000)
@@ -607,10 +623,10 @@ class Craft:
         # Script.WaitFor('RTL', 5000)
 
     # takeoff for testing and non-assisted flying
-    # do not return until takeoff completes (or timeout NI)
+    # do not return until takeoff completes (or timeout - NI)
     # note: desired vertical speed is 2
     # Mission critical: no
-    # Tested: PASS-WG-07/26
+    # Tested: PASS-SITL-07/26
     def change_mode_takeoff(self):
         self.log.log_data("move class - begin takeoff")
         self.sen.get_data()
@@ -646,10 +662,10 @@ class Craft:
         self.log.log_data("move class - takeoff complete")
     # - modes end -
 
-    # - parameters -
-    # 
+    # - parameters begin -
+    # RC channels mapped to ESCs to control individual motor speeds
     # ToDo: incomplete FIX
-    # Mission critical: yes
+    # Mission critical: ~
     # Tested: no
     def params_rc_setup():
         Script.ChangeParam("RC7_FUNCTION", 33)
@@ -673,15 +689,20 @@ class Craft:
             # enable GPS
             self.change_mode_stabilize()
             Script.ChangeParam("AHRS_GPS_USE", 1)
+			State.gps_enabled = True
+			self.log.log_data("Craft class - GSP enabled")
         else:
             # disable GPS
             Script.ChangeParam("AHRS_GPS_USE", 0)
+			State.gps_enabled = False
+			self.log.log_data("Craft class - GSP disabled")
 
     # Sets the crafts fail-safes at script start.
     # Fail-safes: battery, ground-station, RC connection, Kalman filter (EKF), EKF threshold
     # Mission critical: yes
     # Tested: no
     def params_failsafe_setup(self):
+	# BRD_SAFETYENABLE 0 # button off
         Script.ChangeParam("FS_BATT_ENABLE", 0)  # 1:land if low battery, 0:disable (don't stop till you drop) maybe
         Script.ChangeParam("FS_GCS_ENABLE", 0)  # 0:disabled (local ground station?)
         Script.ChangeParam("FS_THR_ENABLE", 0)  # 0:disabled (no radio for mission)
@@ -784,7 +805,8 @@ class Rocket:
             if self.sen.current_altitude > (starting_alt + self.con.launch_trigger_altitude):
                 launched = True
         State.start_time[1] = self.sen.current_time
-        State.start_pos[1] = [self.sen.current_lat, self.sen.current_lng]
+		# GPS will be disabled
+        if gps_enabled: State.start_pos[1] = [self.sen.current_lat, self.sen.current_lng]
         State.start_alt[1] = self.sen.current_altitude
         State.rocket_launced = True
         self.log.log_data("rocket class - launch detected")
@@ -799,32 +821,14 @@ class Rocket:
         # check accelerometer - possibly saturated.
         # may experience GPS problems in this state.
 
-    # Returns once stable flight is detected
-    # Mission critical: yes
-    # Tested: no
-    def wait_for_recover(self):
-        self.log.log_data("rocket class - wait for recovery")
-        # check IMU (roll and pitch within stable range??)
-        # if level wait a few seconds
-        # if still level then return
-        ## testing only
-        # previously set a way-point in test
-        self.sen.get_data()
-        current_vs = self.sen.current_vertical_speed
-        while abs(current_vs) > 1.0:
-            self.sen.get_data()
-            current_vs = self.sen.current_vertical_speed
-        ## testing end
-        self.log.log_data("rocket class - craft recovered")
-
     # Recovery craft from unknown and chaotic free fall state
     # Mission critical: yes
     # Tested: no
     def recover(self):
         # assumed terminal velocity: 35 to 40 m/s
-        # outline:
+        # outline: 
         # - mode stabilize
-        # - engage motors briefly at high throttle
+        # - engage motors briefly at high throttle (needed?)
         # - set a way-point just below current position
         self.log.log_data("rocket class - recovery start")
         if (self.con.recover_arm):
@@ -840,6 +844,27 @@ class Rocket:
         else:
             time.sleep(4)
         self.log.log_data("rocket class - recovery complete")
+
+	# Returns once stable flight is detected
+    # Mission critical: yes
+    # Tested: no
+    def wait_for_recover(self):
+        self.log.log_data("rocket class - wait for recovery")
+        # check IMU (roll and pitch within stable range??)
+        # if level wait a few seconds
+        # if still level then return
+		# note: fault - if stable in upright orientation
+		# DC motors might not start when spinning the wrong way due to wind against the props
+		# monitor vertical speed?  should slow down from way-point set in recover()
+        ## testing only
+        # previously set a way-point in test
+        self.sen.get_data()
+        current_vs = self.sen.current_vertical_speed
+        while abs(current_vs) > 1.0:
+            self.sen.get_data()
+            current_vs = self.sen.current_vertical_speed
+        ## testing end
+        self.log.log_data("rocket class - craft recovered")
 
 
 #
@@ -933,7 +958,7 @@ class Testing:
     # test takeoff
     # 
     # Mission critical: no
-    # Tested: PASS-WG-07/26
+    # Tested: PASS-SITL-07/26
     def test_takeoff(self):
         self.log.log_data("test_takeoff - begin")
         if self.con.include_takeoff_t:
