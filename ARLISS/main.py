@@ -194,7 +194,7 @@ class Config:
     # 
     # Mission critical: yes
     # Tested: no
-    def setup_mission(self):
+    def config_default_ma01(self):
     # (config and params)
         State.mission_begin = True
         # log starting data
@@ -1200,7 +1200,7 @@ class Mission:
     def ma_01(self):
         self.log.log_data("MA_01 begin")
         # setup mission
-        self.setup_mission()
+        self.con.config_default_ma01()
         # wait for rocket launch
         self.roc.wait_for_launch()
         # wait for payload release
