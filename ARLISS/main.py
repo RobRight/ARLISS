@@ -95,7 +95,12 @@ class Config:
     # navigation
     jump_distance = 100  # MC - distance to jump each time. - needs testing. (100)
     jump_alt = 80  # MC - vertical distance to jump. - needs testing. (80)
-    # recovery
+    # payload release detection
+	pr_use_alt = True  # use altitude trigger or accelerometer trigger
+	pr_alt_sleep_test = 1  # time to sleep before resampling altitude
+	pr_alt_trigger = 5  # difference in altitude over 'pr_alt_sleep_test' second(s) to detect payload release
+	pr_ms_alt = 1000  # minimum altitude for payload release detection based on altitude
+	# recovery
     recover_arm = False  # when recovering craft, set True to arm first. (False)
     wait_recov = True  # wait until recovered. - needs work (True)
     # takeoff
@@ -859,6 +864,11 @@ class Rocket:
     def __init__(self):
         pass
 
+	def safe_check(self):
+		if self.sta.rocket_launced is False or self.sta.rocket_payload_released is False:
+			pass
+			# if craft is falling but not launched or released.  possible loss of connection and missed the state change
+
     # Monitors altitude and returns once rocket launches
     # note: add accelerometer check
     # Mission critical: yes
@@ -882,10 +892,29 @@ class Rocket:
     # Mission critical: yes
     # Tested: no
     def wait_for_payload_release(self):
-        pass  
+		self.log.log_data("rocket class - payload release wait begin")
+		# idea: add a small switch to the craft that will trigger when payload released from can
+		if self.con.pr_use_alt:
+			# altitude trigger
+			self.log.log_data("rocket class - pr using altitude trigger")
+			testing_release = True
+			while testing_release:
+				temp_cur_alt = self.sen.return_altitude
+				if temp_cur_alt > self.con.pr_ms_alt:
+					time.sleep(pr_alt_sleep_test)
+					if self.sen.return_altitude < (temp_cur_alt-self.con.pr_alt_trigger):
+						# payload released
+						State.rocket_payload_released = True
+						self.cra.params_gps(True)  # enable GPS after release
+						testing_release = False
+		else:
+			# accelerometer trigger - possibly saturated for launch and free fall
+			#if rocket_launced is True:
+			pass
         # check altitude using barometer.
         # check accelerometer - possibly saturated.
-        # may experience GPS problems in this state.
+        # GPS will be disabled during this state and enabled once complete
+		self.log.log_data("rocket class - payload release wait complete")
 
     # Recovery craft from unknown and chaotic free fall state
     # Mission critical: yes
@@ -893,16 +922,15 @@ class Rocket:
     def recover(self):
         # assumed terminal velocity: 35 to 40 m/s
         # outline: 
-        # - mode stabilize
-        # - engage motors briefly at high throttle (needed?)
+		# - assume level flight
         # - set a way-point just below current position
         self.log.log_data("rocket class - recovery start")
-        if (self.con.recover_arm):
-            self.cra.arm_craft()
-        self.cra.change_mode_stabilize()  # stabilize
-        self.cra.rc_set_value(self.cra.rc_throttle, 0.8)  # throttle 80%
-        time.sleep(1)  # wait
-        self.cra.change_mode_loiter()  # loiter
+        #if (self.con.recover_arm):
+        #    self.cra.arm_craft()
+        #self.cra.change_mode_stabilize()  # stabilize
+        #self.cra.rc_set_value(self.cra.rc_throttle, 0.8)  # throttle 80%
+        #time.sleep(1)  # wait
+        #self.cra.change_mode_loiter()  # loiter
         self.cra.set_waypoint([self.sen.return_latitude, self.sen.return_longitude], (self.sen.return_altitude-self.con.recover_wp_below))
         if (self.con.wait_recov):
             self.wait_for_recover()
