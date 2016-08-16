@@ -28,12 +28,14 @@
 # - add more 'preset_options'
 # - prefix Config variable names with the function they are used with
 # - test Pixhawk sensor variable update rate
-# - add periodic checks before recovery that launch was not missed due to telem loss
+# - add periodic checks before recovery that launch was not missed due to telemetry loss
+# - add threads (ex: waiting_for_release) (maybe)
+# - check location setting works properly
 #
 # Done:
 # - redo Sensor class for speed
 # - add test_movement function for max ground speed and vertical speed
-#
+# - move default config functions to Config class
 
 import math  # math
 import os  # log file path
@@ -45,14 +47,15 @@ clr.AddReference("MAVLink")  # includes the Utilities class
 import MissionPlanner
 from MissionPlanner.Utilities import Locationwp
 import MAVLink  # needed?
+#from thread import start_new_thread
 
 #
 # ------------------------------------------------------
 # preset options:
 # -----------------------
 # ("NA") do not use preset
-# ("dem_t5") run t5 mission with default parameters
-# ("dem_t6") run t6 mission with default parameters
+# ("dam_t5") run t5 mission with default parameters
+# ("dam_t6") run t6 mission with default parameters
 
 # mission options:
 # -----------------
@@ -67,7 +70,7 @@ import MAVLink  # needed?
 
 # location options:
 # -----------------
-# (dem) Demonte Ranch
+# (dam) Damonte Ranch
 # (brd) Black Rock Desert - not implemented
 # ------------------------------------------------------
 
@@ -83,11 +86,11 @@ class Config:
     # use this option to auto configure the Config class settings.
     # if you use this option, most settings will be over written at runtime.
     # if you do not use this option, set it to "NA".
-    preset_config = "NA"  # options("NA", "dem_t5")
+    preset_config = "NA"  # options("NA", "dam_t5")
     # --------------------------
     # - general settings -
     mission_mode = "t2"  # MC - specific mission to run.  see options above. (0)
-    location = "dem"  # flying location.  default: dem (Demonte Ranch)
+    location = "dam"  # flying location.  default: dam (Damonte Ranch)
     run_test = False # sensor and file testing. (False)
     require_disarm = False  # check at start to require disarm.  False is starting in air. (False)
     disable_gps_on_start = False  # True to disable GPS on code start.  (False)
@@ -97,12 +100,13 @@ class Config:
     jump_alt = 80  # MC - vertical distance to jump. - needs testing. (80)
     # payload release detection
 	pr_use_alt = True  # use altitude trigger or accelerometer trigger
-	pr_alt_sleep_test = 1  # time to sleep before resampling altitude
+	pr_alt_sleep_test = 1  # time to sleep before re-sampling altitude
 	pr_alt_trigger = 5  # difference in altitude over 'pr_alt_sleep_test' second(s) to detect payload release
 	pr_ms_alt = 1000  # minimum altitude for payload release detection based on altitude
 	# recovery
     recover_arm = False  # when recovering craft, set True to arm first. (False)
-    wait_recov = True  # wait until recovered. - needs work (True)
+    wait_recov = True  # wait until recovered (True)
+	wr_vs_max = 1.0  # wait for recover, vertical speed below this value. (1.0)
     # takeoff
     takeoff_throttle_val = 0.7  # starting throttle value for takeoff. (70%)
     default_takeoff_alt = 20  # distance in meters from starting location to reach in takeoff. (20 m)
@@ -155,8 +159,8 @@ class Config:
     # random
     loc_rand_unr = [39.550409, -119.809378]  # UNR
     loc_rand_tahoe = [39.221711, -119.928340]  # Lake Tahoe
-    # Demonte Ranch
-    loc_dem = [
+    # Damonte Ranch
+    loc_dam = [
         [39.415847, -119.734851],  # 0
         [39.417526, -119.734867],  # 1
         [39.416714, -119.735511],  # 2
@@ -174,7 +178,7 @@ class Config:
     # Tested: no
     def config_default_t5(self):
         Config.mission_mode = "t5"
-        Config.location = "dem"
+        Config.location = "dam"
         Config.run_test = False
         Config.require_disarm = False
         Config.disable_gps_on_start = False
@@ -187,7 +191,7 @@ class Config:
 	# default config for t6 (test_movement)
 	def config_default_t6(self):
 		Config.mission_mode = "t6"
-        Config.location = "dem"
+        Config.location = "dam"
         Config.run_test = False
         Config.require_disarm = False
         Config.disable_gps_on_start = False
@@ -822,7 +826,7 @@ class Craft:
             check_pass = False
             self.log.log_data("check_ready - error: craft armed")
         # location check
-        if self.con.location == "dem" or self.con.location == "brd": pass # load values into location variable?
+        if self.con.location == "dam" or self.con.location == "brd": pass # load values into location variable?
         else:
             check_pass = False
             self.log.log_data("check_ready - error: location not recognized")
@@ -864,13 +868,11 @@ class Rocket:
     def __init__(self):
         pass
 
-	def safe_check(self):
-		if self.sta.rocket_launced is False or self.sta.rocket_payload_released is False:
-			pass
-			# if craft is falling but not launched or released.  possible loss of connection and missed the state change
-
+	# if craft is falling but not launched or released.  possible loss of connection and missed the state change
+	# add low power mode while waiting (disable GPS, make sure motors are off but craft is armed, telem in low power mode)
+	# 
     # Monitors altitude and returns once rocket launches
-    # note: add accelerometer check
+    # note: if signal loss, it will return once reconnected
     # Mission critical: yes
     # Tested: no
     def wait_for_launch(self):
@@ -887,8 +889,18 @@ class Rocket:
         State.rocket_launced = True
         self.log.log_data("rocket class - launch detected")
 
+	
+	def test_failling(self):
+		temp_cur_alt = self.sen.return_altitude
+		if temp_cur_alt > self.con.pr_ms_alt:
+			time.sleep(pr_alt_sleep_test)
+			if self.sen.return_altitude < (temp_cur_alt-self.con.pr_alt_trigger):
+				# payload released
+				return True
+			else: return False
 
     # Returns once payload release is detected
+	# Waits for falling altitude change over time (will return after posible loss of telem)
     # Mission critical: yes
     # Tested: no
     def wait_for_payload_release(self):
@@ -899,14 +911,10 @@ class Rocket:
 			self.log.log_data("rocket class - pr using altitude trigger")
 			testing_release = True
 			while testing_release:
-				temp_cur_alt = self.sen.return_altitude
-				if temp_cur_alt > self.con.pr_ms_alt:
-					time.sleep(pr_alt_sleep_test)
-					if self.sen.return_altitude < (temp_cur_alt-self.con.pr_alt_trigger):
-						# payload released
-						State.rocket_payload_released = True
-						self.cra.params_gps(True)  # enable GPS after release
-						testing_release = False
+				if self.test_falling() is True:
+					State.rocket_payload_released = True
+					self.cra.params_gps(True)  # enable GPS after release
+					testing_release = False
 		else:
 			# accelerometer trigger - possibly saturated for launch and free fall
 			#if rocket_launced is True:
@@ -916,7 +924,7 @@ class Rocket:
         # GPS will be disabled during this state and enabled once complete
 		self.log.log_data("rocket class - payload release wait complete")
 
-    # Recovery craft from unknown and chaotic free fall state
+    # Recovery craft after rocket release
     # Mission critical: yes
     # Tested: no
     def recover(self):
@@ -951,8 +959,7 @@ class Rocket:
         # monitor vertical speed?  should slow down from way-point set in recover()
         ## testing only
         # previously set a way-point in test
-        current_vs = self.sen.return_vertical_speed
-        while abs(current_vs) > 1.0:
+        while abs(self.sen.return_vertical_speed) > wr_vs_max:
             current_vs = self.sen.return_vertical_speed
         ## testing end
         self.log.log_data("rocket class - craft recovered")
@@ -1061,15 +1068,15 @@ class Testing:
             time.sleep(6)
         # move to way-point 1
         self.log.log_data("test_waypoints - move to way-point one")
-        if self.con.location == "dem":
-            self.log.log_data("test_waypoints - Demonte " + str(self.con.wp_1_index))
-            self.cra.set_waypoint(self.con.loc_dem[self.con.wp_1_index], self.con.testing_altitude)
+        if self.con.location == "dam":
+            self.log.log_data("test_waypoints - Damonte " + str(self.con.wp_1_index))
+            self.cra.set_waypoint(self.con.loc_dam[self.con.wp_1_index], self.con.testing_altitude)
             self.cra.wait_waypoint_complete()
         # way-pint 2
         self.log.log_data("test_waypoints - move to way-point two")
-        if self.con.location == "dem":
-            self.log.log_data("test_waypoints - Demonte " + str(self.con.wp_2_index))
-            self.cra.set_waypoint(self.con.loc_dem[self.con.wp_2_index], self.con.testing_altitude)
+        if self.con.location == "dam":
+            self.log.log_data("test_waypoints - Damonte " + str(self.con.wp_2_index))
+            self.cra.set_waypoint(self.con.loc_dam[self.con.wp_2_index], self.con.testing_altitude)
             self.cra.wait_waypoint_complete()
         # RTL
         if self.con.return_after:
@@ -1084,14 +1091,14 @@ class Testing:
     # Tested: no
     def test_recovery(self):
         self.log.log_data("test_recovery - begin")
-        if (self.con.location != "dem"):  # location check
+        if (self.con.location != "dam"):  # location check
             self.log.log_data("test_recovery - location error")
             return False
         if (self.con.takeoff_before_recover):  # takeoff
             self.cra.change_mode_takeoff()
         if (self.con.flyto_recover):
             self.log.log_data("test_recovery - flying to start position")
-            self.cra.set_waypoint(self.con.loc_dem[5], self.con.test_recover_start_alt)  # recovery location
+            self.cra.set_waypoint(self.con.loc_dam[5], self.con.test_recover_start_alt)  # recovery location
             self.cra.wait_waypoint_complete()
         self.log.log_data("test_recovery - disabling craft")
         self.cra.change_mode_stabilize()
@@ -1105,7 +1112,7 @@ class Testing:
         self.rok.recover()  # recover
         if (self.con.fly_back_home):
             self.log.log_data("test_recovery - flying back")
-            self.cra.navigation_manager(self.con.loc_dem[0], 20)
+            self.cra.navigation_manager(self.con.loc_dam[0], 20)
             self.cra.change_mode_landing()
 
     # test navigation
@@ -1129,46 +1136,48 @@ class Testing:
 		temp_optimal_ground_speed = 0
 		temp_optimal_vertical_speed = 0
 		# settings begin
-		temp_test_alt = 20  # operation altitue most cases
-		temp_test_alt_offset = 30  # test 2 - distace above temp_test_alt
+		temp_test_alt = 20  # operation altitude most cases
+		temp_test_alt_offset = 30  # test 2 - distance above temp_test_alt
 		temp_start_wp = 2  # all tests
 		temp_end_wp = 5  # test 1 and 3
 		temp_offset_dist = 6  # test 2 target way-point offset
 		temp_offset_dir = 270  # test 2
-		# setttings end
+		# settings end
 		# test constant altitude (1) - max ground speed
-		self.cra.set_waypoint(loc_dem[temp_start_wp], temp_test_alt)  # set starting way-point
+		self.cra.set_waypoint(loc_dam[temp_start_wp], temp_test_alt)  # set starting way-point
 		self.cra.wait_waypoint_complete()
-		self.cra.set_waypoint(loc_dem[temp_end_wp], temp_test_alt)  # set target way-point
-		temp_start_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dem[temp_end_wp])
+		self.cra.set_waypoint(loc_dam[temp_end_wp], temp_test_alt)  # set target way-point
+		temp_start_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dam[temp_end_wp])
 		temp_current_dist = temp_start_dist
 		while temp_current_dist > (temp_start_dist/2):  # wait for middle of way-point
-			temp_current_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dem[temp_end_wp])
+			temp_current_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dam[temp_end_wp])
 		temp_max_ground_speed = self.sen.return_ground_speed  # get ground speed
 		# test constant position (mostly)(2) - max vertical speed
-		self.cra.set_waypoint(loc_dem[temp_start_wp], (temp_test_alt+temp_test_alt_offset))
+		self.cra.set_waypoint(loc_dam[temp_start_wp], (temp_test_alt+temp_test_alt_offset))
 		self.cra.wait_waypoint_complete()
-		self.cra.set_waypoint(self.cra.generate_location(loc_dem[temp_start_wp], temp_offset_dist, temp_offset_dir), temp_test_alt)
+		self.cra.set_waypoint(self.cra.generate_location(loc_dam[temp_start_wp], temp_offset_dist, temp_offset_dir), temp_test_alt)
 		temp_start_alt = self.sen.return_altitude
 		temp_current_alt = temp_start_alt
 		while temp_current_alt > (temp_start_alt/2):
 			temp_current_alt = self.sen.return_altitude
 		temp_max_vertical_speed = self.sen.return_vertical_speed
 		# test optimal ground and vertical speed (3)
-		self.cra.set_waypoint(loc_dem[temp_start_wp], (temp_start_alt+temp_start_dist))
+		self.cra.set_waypoint(loc_dam[temp_start_wp], (temp_start_alt+temp_start_dist))
 		self.log.log_data("alt offset/wp dist: " + str(temp_start_dist))
 		self.cra.wait_waypoint_complete()
-		self.cra.set_waypoint(loc_dem[temp_end_wp], temp_start_alt)
+		self.cra.set_waypoint(loc_dam[temp_end_wp], temp_start_alt)
 		temp_current_dist = temp_start_dist
 		while temp_current_alt > (temp_start_dist/2):
-			temp_current_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dem[temp_end_wp])
+			temp_current_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dam[temp_end_wp])
 		temp_optimal_ground_speed = self.sen.return_ground_speed
 		temp_optimal_vertical_speed = self.sen.return_vertical_speed
 		# test complete - log info
+		self.log.log_data("RESULTS")
 		self.log.log_data("test 1 - max groundspeed: " + str(temp_max_ground_speed))
 		self.log.log_data("test 2 - max verticalspeed: " + str(temp_max_vertical_speed))
 		self.log.log_data("test 3 - optimal groundspeed: " + str(temp_optimal_ground_speed))
 		self.log.log_data("test 3 - optimal groundspeed: " + str(temp_optimal_vertical_speed))
+		self.log.log_data("RESULTS end")
 		self.log.log_data("test_movement_speed - end")
 
 
@@ -1250,9 +1259,9 @@ class Mission:
     # Tested: no
     def run_mission(self):
         if (self.con.preset_config != "NA"):
-            if (self.con.preset_config == "dem_t5"):
+            if (self.con.preset_config == "dam_t5"):
                 self.con.config_default_t5()
-			elif (self.con.preset_config == "dem_t6"):
+			elif (self.con.preset_config == "dam_t6"):
 				self.con.config_default_t6()
 			else:
 				self.log.log_data("mission - run_mission - error with preset_config")
