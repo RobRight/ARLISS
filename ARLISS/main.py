@@ -2,10 +2,14 @@
 # UNR ARLISS 2016 Mission Script 
 # Autonomous navigation and control of quad-rotor using Pixhawk flight controller
 #
+# Written by William Gregory
+#
 # Date: 7/1/2016 to present
 #
 # GitHub: https://github.com/robright/arliss
 # MP command info: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
+#
+# Using Python 2.7 and Mission Planner by ArduPilot
 #
 
 #
