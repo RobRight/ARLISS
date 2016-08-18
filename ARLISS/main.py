@@ -35,6 +35,7 @@
 # - add periodic checks before recovery that launch was not missed due to telemetry loss
 # - add threads (ex: waiting_for_release) (maybe)
 # - check location setting works properly
+# - check test_movement_speeds() test three.  currently disabled
 #
 # Done:
 # - redo Sensor class for speed
@@ -69,7 +70,7 @@ import MAVLink  # needed?
 # (t3) test way-points - flies to a few way-points, then RTL and land
 # (t4) test recovery - check settings in Config class
 # (t5) test_navigation
-# (t6) test_movement
+# (t6) test_movement speeds
 # (ma-01) - mission_alpah - complete mission from idle, launch, recovery, navigation, and landing.
 
 # location options:
@@ -90,10 +91,10 @@ class Config:
     # use this option to auto configure the Config class settings.
     # if you use this option, most settings will be over written at runtime.
     # if you do not use this option, set it to "NA".
-    preset_config = "NA"  # options("NA", "dam_t5")
+    preset_config = "dam_t6"  # options ("NA", "dam_t5", dam_t6)
     # --------------------------
     # - general settings -
-    mission_mode = "t2"  # MC - specific mission to run.  see options above. (0)
+    mission_mode = "0"  # MC - specific mission to run.  see options above. (0)
     location = "dam"  # flying location.  default: dam (Damonte Ranch)
     run_test = False # sensor and file testing. (False)
     require_disarm = False  # check at start to require disarm.  False is starting in air. (False)
@@ -103,14 +104,14 @@ class Config:
     jump_distance = 100  # MC - distance to jump each time. - needs testing. (100)
     jump_alt = 80  # MC - vertical distance to jump. - needs testing. (80)
     # payload release detection
-	pr_use_alt = True  # use altitude trigger or accelerometer trigger
-	pr_alt_sleep_test = 1  # time to sleep before re-sampling altitude
-	pr_alt_trigger = 5  # difference in altitude over 'pr_alt_sleep_test' second(s) to detect payload release
-	pr_ms_alt = 1000  # minimum altitude for payload release detection based on altitude
-	# recovery
+    pr_use_alt = True  # use altitude trigger or accelerometer trigger
+    pr_alt_sleep_test = 1  # time to sleep before re-sampling altitude
+    pr_alt_trigger = 5  # difference in altitude over 'pr_alt_sleep_test' second(s) to detect payload release
+    pr_ms_alt = 1000  # minimum altitude for payload release detection based on altitude
+    # recovery
     recover_arm = False  # when recovering craft, set True to arm first. (False)
     wait_recov = True  # wait until recovered (True)
-	wr_vs_max = 1.0  # wait for recover, vertical speed below this value. (1.0)
+    wr_vs_max = 1.0  # wait for recover, vertical speed below this value. (1.0)  decending but use positive value
     # takeoff
     takeoff_throttle_val = 0.7  # starting throttle value for takeoff. (70%)
     default_takeoff_alt = 20  # distance in meters from starting location to reach in takeoff. (20 m)
@@ -118,7 +119,7 @@ class Config:
     # land
     desired_vert_speed = -0.2 # MC - once vertical speed drops below this value, assume landed. (-0.2 m/s)
     # way-points
-    waypoint_tolerance = 5  # MC - distance away from way-points in meters to consider it completed. (5 m)
+    waypoint_tolerance = 10  # MC - distance away from way-points in meters to consider it completed. (5 m)
     # launch detection
     launch_trigger_altitude = 100 # altitude in meters from ground to acknowledge launch (500 m)
     # ---------------------------
@@ -176,10 +177,10 @@ class Config:
         [39.413872, -119.736562],  # 8
         [39.412644, -119.736585],  # 9
         [39.413439, -119.735824]]  # 10
-	
-	# setup configuration for navigation test
+    
+    # setup configuration for navigation test
     # Mission critical: no
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def config_default_t5(self):
         Config.mission_mode = "t5"
         Config.location = "dam"
@@ -188,32 +189,28 @@ class Config:
         Config.disable_gps_on_start = False
         Config.jump_distance = 100
         Config.jump_alt = 80
-        Config.waypoint_tolerance = 5
-        Config.log_enable = True
-        Config.print_enable = True
+        Config.waypoint_tolerance = 10
 
-	# default config for t6 (test_movement)
-	def config_default_t6(self):
-		Config.mission_mode = "t6"
+    # default config for t6 (test_movement)
+    def config_default_t6(self):
+        Config.mission_mode = "t6"
         Config.location = "dam"
         Config.run_test = False
         Config.require_disarm = False
         Config.disable_gps_on_start = False
-        Config.waypoint_tolerance = 0
-        Config.log_enable = True
-        Config.print_enable = True
+        Config.waypoint_tolerance = 3
 
-	# setup at start of mission alpha
+    # setup at start of mission alpha
     # 
     # Mission critical: yes
     # Tested: no
     def config_default_ma01(self):
     # (config and params)
         State.mission_begin = True
-        # log starting data
-        State.start_time[0] = self.sen.return_time
-        State.start_pos[0] = [self.sen.return_latitude, self.sen.return_longitude]
-        State.start_alt[0] = self.sen.return_altitude
+        # log starting data - move this FIX
+        State.start_time[0] = self.sen.return_time()
+        State.start_pos[0] = [self.sen.return_latitude(), self.sen.return_longitude()]
+        State.start_alt[0] = self.sen.return_altitude()
         # setup config
         Config.mission_mode = "ma-01"
         Config.location = "brd"
@@ -227,8 +224,8 @@ class Config:
         Config.waypoint_tolerance = 5
         Config.launch_trigger_altitude = 100
         Config.log_enable = True
-        Config.print_enable = True
-        Config.default_name = "log_file"
+        Config.log_print_enable = True
+        Config.log_default_name = "main_log_file"
         Config.rc_throttle_pin = 3
         Config.rc_pitch_pin = 2
         Config.rc_roll_pin = 1
@@ -292,7 +289,7 @@ class Logging:
     # Tested: PASS-SITL-07/26
     def log_data(self, in_data):
         if self.con.log_enable:
-            filename = self.generate_filename(self.con.default_name)
+            filename = self.generate_filename(self.con.log_default_name)
             f = open(filename, 'a')
             current_time = time.strftime("%H_%M_%S: ", time.localtime())
             f.write(current_time + in_data + "\n")
@@ -317,44 +314,44 @@ class Logging:
 # ------------------------------------------------------
 # Manages the crafts flight variables.
 # Call return_sensor to get most recent value
-#
+# PASS-SITL-08/18
 class Sensors:
     log = Logging()
 
     def __init__(self):
         pass
 
-	# # self.log.log_data("logging class - got new sensor data")
+    # # self.log.log_data("logging class - got new sensor data")
 
-	# time.time()  # computer time () *
-	# cs.mode  # flight mode (mode)
-	# cs.wp_dist  # remaining way-point distance (m)
-	# cs.wpno  # way-point number (#)
-	# cs.alt  # altitude (m)
-	# cs.verticalspeed  # vertical speed (m/s) *
-	# cs.groundspeed  # ground speed (m/s)
-	# cs.groundcourse  # ground course (deg)
-	# cs.wind_dir  # wind direction (deg)
-	# cs.wind_vel  # wind velocity (m/s)
-	# cs.roll  # roll (deg) *
-	# cs.pitch  # pitch (deg) *
-	# cs.yaw  # yaw (deg)
-	# cs.lat  # latitude (decimal degrees) *
-	# cs.lng  # longitude (decimal degrees) *
-	# cs.gpsstatus  # GPS status (not sure.. 3 for 3D fix?) *
-	# cs.satcount  # satellite count (#)
-	# cs.battery_voltage  # battery voltage (volt)
-	# cs.battery_remaining  # battery remaining (%) *
-	# cs.armed  # armed state (1:armed, 0:disarmed) *
-	# cs.alt_error  # altitude error (m)
-	
-	# cs.ax
-	# cs.ay
-	# cs.az
+    # time.time()  # computer time () *
+    # cs.mode  # flight mode (mode)
+    # cs.wp_dist  # remaining way-point distance (m)
+    # cs.wpno  # way-point number (#)
+    # cs.alt  # altitude (m)
+    # cs.verticalspeed  # vertical speed (m/s) *
+    # cs.groundspeed  # ground speed (m/s)
+    # cs.groundcourse  # ground course (deg)
+    # cs.wind_dir  # wind direction (deg)
+    # cs.wind_vel  # wind velocity (m/s)
+    # cs.roll  # roll (deg) *
+    # cs.pitch  # pitch (deg) *
+    # cs.yaw  # yaw (deg)
+    # cs.lat  # latitude (decimal degrees) *
+    # cs.lng  # longitude (decimal degrees) *
+    # cs.gpsstatus  # GPS status (not sure.. 3 for 3D fix?) *
+    # cs.satcount  # satellite count (#)
+    # cs.battery_voltage  # battery voltage (volt)
+    # cs.battery_remaining  # battery remaining (%) *
+    # cs.armed  # armed state (1:armed, 0:disarmed) *
+    # cs.alt_error  # altitude error (m)
+    
+    # cs.ax
+    # cs.ay
+    # cs.az
 
-	# cs.gx
-	# cs.gy
-	# cs.gz
+    # cs.gx
+    # cs.gy
+    # cs.gz
 
     # most used values for quick update
     # returns the most up-to-date value
@@ -368,23 +365,23 @@ class Sensors:
         return cs.alt
     def return_vertical_speed(self):
         return cs.verticalspeed
-	def return_battery_remaining(self):
-		return cs.battery_remaining
-	def return_time(self):
-		return time.time()
-	def return_armed(self):
-		return cs.armed
-	def return_distance(self):
-		return cs.wp_dist
-	def return_gps_stat(self):
-		return cs.gpsstatus
-	def return_mode(self):
-		return cs.mode
-	def return_ground_speed(self):
-		return cs.groundspeed
-	def return_gps_count(self):
-		return cs.satcount
-	def return_roll(self): #
+    def return_battery_remaining(self):
+        return cs.battery_remaining
+    def return_time(self):
+        return time.time()
+    def return_armed(self):
+        return cs.armed
+    def return_distance(self):
+        return cs.wp_dist
+    def return_gps_stat(self):
+        return cs.gpsstatus
+    def return_mode(self):
+        return cs.mode
+    def return_ground_speed(self):
+        return cs.groundspeed
+    def return_gps_count(self):
+        return cs.satcount
+    def return_roll(self): #
         return cs.roll
     def return_pitch(self): #
         return cs.pitch
@@ -401,12 +398,12 @@ class Sensors:
     # Tested: no
     def log_data(self):
         self.log.log_data("- logging sensor data -")
-        self.log.log_data("current_time: %f" % self.return_time)
-        self.log.log_data("current_mode: " + self.return_mode)
-        self.log.log_data("current_altitude: " + str(self.return_altitude))
-        self.log.log_data("current_ground_speed: " + str(self.return_ground_speed))
-        self.log.log_data("current_gps_count: " + str(self.return_gps_count))
-        self.log.log_data("current_armed: " + str(self.return_armed))
+        self.log.log_data("current_time: %f" % self.return_time())
+        self.log.log_data("current_mode: " + self.return_mode())
+        self.log.log_data("current_altitude: " + str(self.return_altitude()))
+        self.log.log_data("current_ground_speed: " + str(self.return_ground_speed()))
+        self.log.log_data("current_gps_count: " + str(self.return_gps_count()))
+        self.log.log_data("current_armed: " + str(self.return_armed()))
         self.log.log_data("")
 
 
@@ -449,7 +446,7 @@ class Craft:
     #   - channel (ex: rc_throttle)
     #   - double (must be in 0:1 range)
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def rc_set_value(self, chan, in_val):
         # check input
         if in_val > 1 or in_val < 0:
@@ -467,7 +464,7 @@ class Craft:
     # set value to all four RC channels
     # input: double x4 (0:1); to skip a channel input (-1) for its value
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def rc_set_all(self, in_t, in_p, in_r, in_y):
         if in_t != (-1):
             self.rc_set_value(self.rc_throttle, in_t)
@@ -481,7 +478,7 @@ class Craft:
 
     # reset all RC value inputs to idle position
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def rc_reset_all(self):
         # throttle min, pitch half, roll half, yaw half
         self.rc_set_all(0.0, 0.5, 0.5, 0.5)
@@ -489,7 +486,7 @@ class Craft:
 
     # arm craft.  fail-safes must pass.
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def arm_craft(self):
         self.log.log_data("move class - arming motors")
         self.change_mode_stabilize()
@@ -498,14 +495,14 @@ class Craft:
         self.rc_set_all(0, -1, -1, 1)
         temp_armed = False
         while temp_armed is False:
-            temp_armed = self.sen.return_armed
+            temp_armed = self.sen.return_armed()
         self.rc_reset_all()
         self.log.log_data("move class - motors armed")
         self.armed = True
         return True
 
     # disarm motors (low power mode)
-    # Mission critical: yes
+    # Mission critical: no
     # Tested: no
     def disarm_craft(self):
         self.log.log_data("move class - disarming motors")
@@ -515,7 +512,7 @@ class Craft:
         self.rc_set_all(0, -1, -1, 0)
         temp_armed = True
         while temp_armed is True:
-            temp_armed = self.sen.return_armed
+            temp_armed = self.sen.return_armed()
         self.rc_reset_all()
         self.rc_reset_all()
         self.log.log_data("move class - motors disarmed")
@@ -527,7 +524,7 @@ class Craft:
     # returns the distance between two locations
     # input: start_loc: [lat, lon], end_loc: [lat, lon]
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def calc_distance(self, start_loc, end_loc):
         R=6378137
         # Haversine Formula
@@ -544,7 +541,7 @@ class Craft:
     # Returns direction in degrees
     # Input: start_loc(lat,lon) end_loc(lat,lon)
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def calc_direction_to(self, start_loc, end_loc):
         start_lat = math.radians(start_loc[0])
         start_lon = math.radians(start_loc[1])
@@ -580,7 +577,7 @@ class Craft:
     # passing all ([lat,lng],alt) values will send this way-point to craft
     # input: [latitude, longitude], (int) altitude (units???)
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def set_waypoint(self, loc, loc_alt):
         new_wp = MissionPlanner.Utilities.Locationwp()  # create way-point object
         MissionPlanner.Utilities.Locationwp.lat.SetValue(new_wp, loc[0])  # set way-point latitude
@@ -595,15 +592,15 @@ class Craft:
     # Returns after current way-point complete based on distance to target.
     # note: blocking functions.  could add timeout
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def wait_waypoint_complete(self):
         self.log.log_data("move class - waiting for way-point")
         time.sleep(1)
         flying_to_wp = True
         while flying_to_wp:
-            if self.sen.return_distance < self.con.waypoint_tolerance:
+            if self.sen.return_distance() < self.con.waypoint_tolerance:
                 flying_to_wp = False
-        self.log.log_data("move class - wait: way-point complete: " + str(self.sen.return_distance))
+        self.log.log_data("move class - wait: way-point complete: " + str(self.sen.return_distance()))
         return True
 
     # Navigation manager determines path and sets way-points
@@ -611,15 +608,15 @@ class Craft:
     # input: target: [lat, lon], target_alt: target altitude
     # note: add types like directional or decent
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def navigation_manager(self, target, target_alt):
         self.log.log_data("move class - navigation start")
-        total_dist = self.calc_distance([self.sen.return_latitude, self.sen.return_longitude], target)
-        total_alt = math.fabs(self.sen.return_altitude - target_alt)
+        total_dist = self.calc_distance([self.sen.return_latitude(), self.sen.return_longitude()], target)
+        total_alt = math.fabs(self.sen.return_altitude() - target_alt)
         nav_complete = False
         while nav_complete == False:
-            current_loc = [self.sen.return_latitude, self.sen.return_longitude]
-            current_alt = self.sen.return_altitude
+            current_loc = [self.sen.return_latitude(), self.sen.return_longitude()]
+            current_alt = self.sen.return_altitude()
             remaining_dist = self.calc_distance(current_loc, target)
             self.log.log_data("move class - navigation: distance: " + str(remaining_dist))
             # find next alt
@@ -650,7 +647,7 @@ class Craft:
     # waits for landing based on vertical speed
     # note: blocking function. could add timeout
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def wait_for_land(self):
         self.log.log_data("move class - waiting for land")
         # wait for craft to begin landing
@@ -658,12 +655,12 @@ class Craft:
         landing = True
         while landing:
             # craft vertical speed within touchdown range
-            if self.sen.return_vertical_speed < 0.0 and self.sen.return_vertical_speed > self.con.desired_vert_speed:
+            if self.sen.return_vertical_speed() < 0.0 and self.sen.return_vertical_speed() > self.con.desired_vert_speed:
                 landing = False
         temp_armed = True
         # wait for auto disarm
         while temp_armed:
-            temp_armed = self.sen.return_armed
+            temp_armed = self.sen.return_armed()
         self.change_mode_guided()
         State.landed = True
         self.log.log_data("move class - landing complete")
@@ -714,7 +711,7 @@ class Craft:
     # Tested: PASS-SITL-07/26
     def change_mode_takeoff(self):
         self.log.log_data("move class - begin takeoff")
-        temp_start_alt = self.sen.return_altitude
+        temp_start_alt = self.sen.return_altitude()
         # arm
         self.arm_craft()
         # enter loiter mode
@@ -729,17 +726,17 @@ class Craft:
         # maintain until at set altitude
         while taking_off:
             # monitor vertical speed
-            if self.sen.return_vertical_speed < self.con.default_takeoff_speed:
+            if self.sen.return_vertical_speed() < self.con.default_takeoff_speed:
                 self.con.takeoff_throttle_val + 0.01
-            if self.sen.return_vertical_speed > self.con.default_takeoff_speed+1:
+            if self.sen.return_vertical_speed() > self.con.default_takeoff_speed+1:
                 self.con.takeoff_throttle_val - 0.01
             # set throttle
             self.rc_set_value(self.rc_throttle, self.con.takeoff_throttle_val)
             # update altitude
-            if self.sen.return_altitude > (temp_start_alt + self.con.default_takeoff_alt):
+            if self.sen.return_altitude() > (temp_start_alt + self.con.default_takeoff_alt):
                 taking_off = False
         self.change_mode_guided()
-        self.set_waypoint([self.sen.return_latitude, self.sen.return_longitude], self.con.default_takeoff_alt)
+        self.set_waypoint([self.sen.return_latitude(), self.sen.return_longitude()], self.con.default_takeoff_alt)
         self.rc_reset_all()
         State.landed = False
         self.log.log_data("move class - takeoff complete")
@@ -810,7 +807,7 @@ class Craft:
     # Mission critical: no
     # Tested: no
     def battery_monitor(self):
-        temp_bat_remaining = self.sen.return_battery_remaining
+        temp_bat_remaining = self.sen.return_battery_remaining()
         if (self.sta.last_battery == -1):
             State.last_battery = temp_bat_remaining
         if (temp_bat_remaining < self.sta.last_battery - battery_update_interval):
@@ -822,11 +819,11 @@ class Craft:
     # Checks: *armed, location, GPS lock
     # ToDo: check will fail is no GPS lock.  MA_01 no GPS on start.  FIX
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def check_ready(self):
         check_pass = True
         # armed check
-        if self.sen.return_armed and self.con.require_disarm:
+        if self.sen.return_armed() and self.con.require_disarm:
             check_pass = False
             self.log.log_data("check_ready - error: craft armed")
         # location check
@@ -835,7 +832,7 @@ class Craft:
             check_pass = False
             self.log.log_data("check_ready - error: location not recognized")
         # GPS lock
-        if self.sen.return_gps_stat != 3:
+        if self.sen.return_gps_stat() != 3:
             check_pass = False
             self.log.log_data("check_ready - error: GPS fail")
         # return
@@ -844,7 +841,7 @@ class Craft:
     # Setup general at script start.
     # Calls: check_ready(), rc_reset_all(), change_mode_guided()
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def setup(self):
         if self.check_ready() is False:
             self.log.log_data("move class - error: check_ready() failed")
@@ -872,61 +869,61 @@ class Rocket:
     def __init__(self):
         pass
 
-	# if craft is falling but not launched or released.  possible loss of connection and missed the state change
-	# add low power mode while waiting (disable GPS, make sure motors are off but craft is armed, telem in low power mode)
-	# 
+    # if craft is falling but not launched or released.  possible loss of connection and missed the state change
+    # add low power mode while waiting (disable GPS, make sure motors are off but craft is armed, telem in low power mode)
+    # 
     # Monitors altitude and returns once rocket launches
     # note: if signal loss, it will return once reconnected
     # Mission critical: yes
     # Tested: no
     def wait_for_launch(self):
         self.log.log_data("rocket class - wait for launch")
-        starting_alt = self.sen.return_altitude
+        starting_alt = self.sen.return_altitude()
         launched = False
         while launched == False:
-            if self.sen.return_altitude > (starting_alt + self.con.launch_trigger_altitude):
+            if self.sen.return_altitude() > (starting_alt + self.con.launch_trigger_altitude):
                 launched = True
-        State.start_time[1] = self.sen.return_time
+        State.start_time[1] = self.sen.return_time()
         # GPS will be disabled
-        #if gps_enabled: State.start_pos[1] = [self.sen.return_latitude, self.sen.return_longitude]
-        State.start_alt[1] = self.sen.return_altitude
+        #if gps_enabled: State.start_pos[1] = [self.sen.return_latitude(), self.sen.return_longitude()]
+        State.start_alt[1] = self.sen.return_altitude()
         State.rocket_launced = True
         self.log.log_data("rocket class - launch detected")
 
-	
-	def test_failling(self):
-		temp_cur_alt = self.sen.return_altitude
-		if temp_cur_alt > self.con.pr_ms_alt:
-			time.sleep(pr_alt_sleep_test)
-			if self.sen.return_altitude < (temp_cur_alt-self.con.pr_alt_trigger):
-				# payload released
-				return True
-			else: return False
+    
+    def test_failling(self):
+        temp_cur_alt = self.sen.return_altitude()
+        if temp_cur_alt > self.con.pr_ms_alt:
+            time.sleep(pr_alt_sleep_test)
+            if self.sen.return_altitude() < (temp_cur_alt-self.con.pr_alt_trigger):
+                # payload released
+                return True
+            else: return False
 
     # Returns once payload release is detected
-	# Waits for falling altitude change over time (will return after posible loss of telem)
+    # Waits for falling altitude change over time (will return after posible loss of telem)
     # Mission critical: yes
     # Tested: no
     def wait_for_payload_release(self):
-		self.log.log_data("rocket class - payload release wait begin")
-		# idea: add a small switch to the craft that will trigger when payload released from can
-		if self.con.pr_use_alt:
-			# altitude trigger
-			self.log.log_data("rocket class - pr using altitude trigger")
-			testing_release = True
-			while testing_release:
-				if self.test_falling() is True:
-					State.rocket_payload_released = True
-					self.cra.params_gps(True)  # enable GPS after release
-					testing_release = False
-		else:
-			# accelerometer trigger - possibly saturated for launch and free fall
-			#if rocket_launced is True:
-			pass
+        self.log.log_data("rocket class - payload release wait begin")
+        # idea: add a small switch to the craft that will trigger when payload released from can
+        if self.con.pr_use_alt:
+            # altitude trigger
+            self.log.log_data("rocket class - pr using altitude trigger")
+            testing_release = True
+            while testing_release:
+                if self.test_falling() is True:
+                    State.rocket_payload_released = True
+                    self.cra.params_gps(True)  # enable GPS after release
+                    testing_release = False
+        else:
+            # accelerometer trigger - possibly saturated for launch and free fall
+            #if rocket_launced is True:
+            pass
         # check altitude using barometer.
         # check accelerometer - possibly saturated.
         # GPS will be disabled during this state and enabled once complete
-		self.log.log_data("rocket class - payload release wait complete")
+        self.log.log_data("rocket class - payload release wait complete")
 
     # Recovery craft after rocket release
     # Mission critical: yes
@@ -934,7 +931,7 @@ class Rocket:
     def recover(self):
         # assumed terminal velocity: 35 to 40 m/s
         # outline: 
-		# - assume level flight
+        # - assume level flight
         # - set a way-point just below current position
         self.log.log_data("rocket class - recovery start")
         #if (self.con.recover_arm):
@@ -943,7 +940,7 @@ class Rocket:
         #self.cra.rc_set_value(self.cra.rc_throttle, 0.8)  # throttle 80%
         #time.sleep(1)  # wait
         #self.cra.change_mode_loiter()  # loiter
-        self.cra.set_waypoint([self.sen.return_latitude, self.sen.return_longitude], (self.sen.return_altitude-self.con.recover_wp_below))
+        self.cra.set_waypoint([self.sen.return_latitude(), self.sen.return_longitude()], (self.sen.return_altitude()-self.con.recover_wp_below))
         if (self.con.wait_recov):
             self.wait_for_recover()
         else:
@@ -963,8 +960,9 @@ class Rocket:
         # monitor vertical speed?  should slow down from way-point set in recover()
         ## testing only
         # previously set a way-point in test
-        while abs(self.sen.return_vertical_speed) > wr_vs_max:
-            current_vs = self.sen.return_vertical_speed
+        current_vs = self.sen.return_vertical_speed()
+        while abs(current_vs) > abs(wr_vs_max):
+            current_vs = self.sen.return_vertical_speed()
         ## testing end
         self.log.log_data("rocket class - craft recovered")
 
@@ -1122,67 +1120,68 @@ class Testing:
     # test navigation
     # 
     # Mission critical: no
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def test_navigation(self):
         self.log.log_data("test_navigation - begin")
         self.cra.navigation_manager(con.loc_rand_unr, 20)
         self.log.log_data("test_navigation - end")
 
-	# test movement speeds (ground and vertical speeds)
-	# constant altitude, constant position
-	# test optimal speeds with same altitude and position change
-	# Mission critiacal: no
-	# Tested: no
-	def test_movement_speeds(self):
-		self.log.log_data("test_movement_speed - begin")
-		temp_max_ground_speed = 0
-		temp_max_vertical_speed = 0
-		temp_optimal_ground_speed = 0
-		temp_optimal_vertical_speed = 0
-		# settings begin
-		temp_test_alt = 20  # operation altitude most cases
-		temp_test_alt_offset = 30  # test 2 - distance above temp_test_alt
-		temp_start_wp = 2  # all tests
-		temp_end_wp = 5  # test 1 and 3
-		temp_offset_dist = 6  # test 2 target way-point offset
-		temp_offset_dir = 270  # test 2
-		# settings end
-		# test constant altitude (1) - max ground speed
-		self.cra.set_waypoint(loc_dam[temp_start_wp], temp_test_alt)  # set starting way-point
-		self.cra.wait_waypoint_complete()
-		self.cra.set_waypoint(loc_dam[temp_end_wp], temp_test_alt)  # set target way-point
-		temp_start_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dam[temp_end_wp])
-		temp_current_dist = temp_start_dist
-		while temp_current_dist > (temp_start_dist/2):  # wait for middle of way-point
-			temp_current_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dam[temp_end_wp])
-		temp_max_ground_speed = self.sen.return_ground_speed  # get ground speed
-		# test constant position (mostly)(2) - max vertical speed
-		self.cra.set_waypoint(loc_dam[temp_start_wp], (temp_test_alt+temp_test_alt_offset))
-		self.cra.wait_waypoint_complete()
-		self.cra.set_waypoint(self.cra.generate_location(loc_dam[temp_start_wp], temp_offset_dist, temp_offset_dir), temp_test_alt)
-		temp_start_alt = self.sen.return_altitude
-		temp_current_alt = temp_start_alt
-		while temp_current_alt > (temp_start_alt/2):
-			temp_current_alt = self.sen.return_altitude
-		temp_max_vertical_speed = self.sen.return_vertical_speed
-		# test optimal ground and vertical speed (3)
-		self.cra.set_waypoint(loc_dam[temp_start_wp], (temp_start_alt+temp_start_dist))
-		self.log.log_data("alt offset/wp dist: " + str(temp_start_dist))
-		self.cra.wait_waypoint_complete()
-		self.cra.set_waypoint(loc_dam[temp_end_wp], temp_start_alt)
-		temp_current_dist = temp_start_dist
-		while temp_current_alt > (temp_start_dist/2):
-			temp_current_dist = self.cra.calc_distance([self.sen.return_latitude, self.sen.return_longitude], loc_dam[temp_end_wp])
-		temp_optimal_ground_speed = self.sen.return_ground_speed
-		temp_optimal_vertical_speed = self.sen.return_vertical_speed
-		# test complete - log info
-		self.log.log_data("RESULTS")
-		self.log.log_data("test 1 - max groundspeed: " + str(temp_max_ground_speed))
-		self.log.log_data("test 2 - max verticalspeed: " + str(temp_max_vertical_speed))
-		self.log.log_data("test 3 - optimal groundspeed: " + str(temp_optimal_ground_speed))
-		self.log.log_data("test 3 - optimal groundspeed: " + str(temp_optimal_vertical_speed))
-		self.log.log_data("RESULTS end")
-		self.log.log_data("test_movement_speed - end")
+    # test movement speeds (ground and vertical speeds)
+    # constant altitude, constant position
+    # test optimal speeds with same altitude and position change
+    # Mission critiacal: no
+    # Tested: PASS-SITL-08/18
+    def test_movement_speeds(self):
+        self.log.log_data("test_movement_speeds - begin")
+        temp_max_ground_speed = 0
+        temp_max_vertical_speed = 0
+        temp_optimal_ground_speed = 0
+        temp_optimal_vertical_speed = 0
+        # settings begin
+        temp_test_alt = 20  # operation altitude most cases
+        temp_test_alt_offset = 30  # test 2 - distance above temp_test_alt
+        temp_start_wp = 2  # all tests
+        temp_end_wp = 5  # test 1 and 3
+        temp_offset_dist = 6  # test 2 target way-point offset
+        temp_offset_dir = 270  # test 2
+        # settings end
+        # test constant altitude (1) - max ground speed
+        self.cra.set_waypoint(self.con.loc_dam[temp_start_wp], temp_test_alt)  # set starting way-point
+        self.cra.wait_waypoint_complete()
+        self.cra.set_waypoint(self.con.loc_dam[temp_end_wp], temp_test_alt)  # set target way-point
+        temp_start_dist = self.cra.calc_distance([self.sen.return_latitude(), self.sen.return_longitude()], self.con.loc_dam[temp_end_wp])
+        temp_current_dist = temp_start_dist
+        while temp_current_dist > (temp_start_dist/2):  # wait for middle of way-point
+            temp_current_dist = self.cra.calc_distance([self.sen.return_latitude(), self.sen.return_longitude()], self.con.loc_dam[temp_end_wp])
+        temp_max_ground_speed = self.sen.return_ground_speed()  # get ground speed
+        # test constant position (mostly)(2) - max vertical speed
+        self.cra.set_waypoint(self.con.loc_dam[temp_start_wp], (temp_test_alt+temp_test_alt_offset))
+        self.cra.wait_waypoint_complete()
+        self.cra.set_waypoint(self.cra.generate_location(self.con.loc_dam[temp_start_wp], temp_offset_dist, temp_offset_dir), temp_test_alt)
+        temp_start_alt = self.sen.return_altitude()
+        temp_current_alt = temp_start_alt
+        while temp_current_alt > (temp_start_alt/2):
+            temp_current_alt = self.sen.return_altitude()
+        temp_max_vertical_speed = self.sen.return_vertical_speed()
+        # # test optimal ground and vertical speed (3) FIX
+        # self.cra.set_waypoint(self.con.loc_dam[temp_start_wp], (temp_start_alt+temp_start_dist))
+        # self.log.log_data("alt offset/wp dist: " + str(temp_start_dist))
+        # self.cra.wait_waypoint_complete()
+        # self.cra.set_waypoint(self.con.loc_dam[temp_end_wp], temp_start_alt)
+        # temp_current_dist = temp_start_dist
+        # while (temp_current_alt-temp_start_alt) > (temp_start_dist/2):
+            # temp_current_dist = self.cra.calc_distance([self.sen.return_latitude(), self.sen.return_longitude()], self.con.loc_dam[temp_end_wp])
+        # temp_optimal_ground_speed = self.sen.return_ground_speed()
+        # temp_optimal_vertical_speed = self.sen.return_vertical_speed()
+        # test complete - log info
+        self.log.log_data("RESULTS")
+        self.log.log_data("test 1 - max groundspeed: " + str(temp_max_ground_speed))
+        self.log.log_data("test 2 - max verticalspeed: " + str(temp_max_vertical_speed))
+        # self.log.log_data("test 3 - optimal groundspeed: " + str(temp_optimal_ground_speed))
+        # self.log.log_data("test 3 - optimal groundvertical: " + str(temp_optimal_vertical_speed))
+        self.log.log_data("RESULTS end")
+        self.log.log_data("--Please email William the file located in Documents\CODE_LOGS--")
+        self.log.log_data("test_movement_speeds - end")
 
 
 #
@@ -1260,15 +1259,15 @@ class Mission:
     # run mission
     # 
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def run_mission(self):
         if (self.con.preset_config != "NA"):
             if (self.con.preset_config == "dam_t5"):
                 self.con.config_default_t5()
-			elif (self.con.preset_config == "dam_t6"):
-				self.con.config_default_t6()
-			else:
-				self.log.log_data("mission - run_mission - error with preset_config")
+            elif (self.con.preset_config == "dam_t6"):
+                self.con.config_default_t6()
+            else:
+                self.log.log_data("mission - run_mission - error with preset_config")
         self.log.log_data("mission class - running mission")
         if (self.con.mission_mode == "0"):  # no mission
             self.log.log_data("mission class - no mission to run")
@@ -1284,7 +1283,9 @@ class Mission:
             self.tes.test_recovery()
         elif (self.con.mission_mode == "t5"):  # test navigation
             self.tes.test_navigation()
-        elif (self.con.mission_mode == "ma-01"):
+        elif (self.con.mission_mode == "t6"):  # test movement speeds
+            self.tes.test_movement_speeds()
+        elif (self.con.mission_mode == "ma-01"):  # mission ma-01
             self.log.log_data("mission class - starting MissionAlpha-01")
             self.ma_01()
             self.log.log_data("mission class - mission complete")
@@ -1297,7 +1298,7 @@ class Mission:
 
     # Call to start the script
     # Mission critical: yes
-    # Tested: no
+    # Tested: PASS-SITL-08/18
     def autorun(self):
         if self.cra.setup() is True:
             self.log.log_data("mission class - craft check passed.  starting script")
