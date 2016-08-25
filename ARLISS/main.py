@@ -13,34 +13,58 @@
 #
 
 #
+# Mission Setup Instructions:
+# 1. Setup Mission Planner
+#	a. metric units
+# 2. Setup Craft Initial
+#	a. set near rocket launch site and power on
+#	b. connect to Mission Planner
+# 3. Setup Code Initial
+# 	a. set Config:preset_config = "ma-01-init"
+#	b. run code
+# 4. Setup Craft Final
+#	a. 
+# 5. Setup Code Final
+# 	a. set Config:preset_config = "ma-01"
+#	b. run code
+# 6. Put craft in the can
+#
+
+# - Code:
+#
+# Mission Setup Notes:
+# - craft should be armed with GPS disabled
+# - props should not be spinning
+# - 
+
+#
 # ToDo:
-# - disable GPS before launch; get fix once payload released (recovered?) - test
-# - detect launch (barometer!, accelerometer)
-# - detect rocket ejection (accelerometer(possibly saturated), barometer, vertical speed(available wo GPS?)
 # - test parameter manage function (GPS, Fail-safes)
-# - complete parameter manage for PIDs (separate PIDs for recovery and navigation?)
-# - test arming in mid-flight (pre-arm checks) (else arm on ground)
+# -* complete parameter manage for PIDs (separate PIDs for recovery and navigation?)
 # - add battery monitor function w/ periodic update
-# - add periodic status report. distance to target.  distance covered.  own log file?
+# -* add periodic status report. distance to target.  distance covered.  own log file?
 # - add periodic checks that craft is stable and on track (maybe)
-# - add check for GPS status and GPS dependent modes (warning when GPS required and disabled)
+# -* add check for GPS status and GPS dependent modes (warning when GPS required and disabled)
 # - discuss adding sonar to the craft for landing
 # - test altitude reading when GPS is disabled using barometer (same sensor variable?)
 # - look into Python memory management
 # - complete Rocket class functions
-# - add lots of useful comments
-# - add more 'preset_options'
 # - prefix Config variable names with the function they are used with
-# - test Pixhawk sensor variable update rate
-# - add periodic checks before recovery that launch was not missed due to telemetry loss
+# -* test Pixhawk sensor variable update rate
+# - add periodic checks before payload release that launch or payload release was not missed due to telemetry loss
 # - add threads (ex: waiting_for_release) (maybe)
-# - check location setting works properly
-# - check test_movement_speeds() test three.  currently disabled
+# -* check location setting works properly
+# - check test_movement_speeds() test three currently disabled
+# - consider not moving straight down for recovery to avoid prop wash
 #
 # Done:
 # - redo Sensor class for speed
 # - add test_movement function for max ground speed and vertical speed
-# - move default config functions to Config class
+# - move default configuration functions to Config class
+# - add detect launch function
+# - add detect payload release function
+# - add timeout on wait_for_recover and retry after a delay
+# - disable GPS before launch; get fix once payload released
 
 import math  # math
 import os  # log file path
@@ -59,6 +83,7 @@ import MAVLink  # needed?
 # preset options:
 # -----------------------
 # ("NA") do not use preset
+# ("ma-01")
 # ("dam_t5") run t5 mission with default parameters
 # ("dam_t6") run t6 mission with default parameters
 
@@ -109,9 +134,10 @@ class Config:
     pr_alt_trigger = 5  # difference in altitude over 'pr_alt_sleep_test' second(s) to detect payload release
     pr_ms_alt = 1000  # minimum altitude for payload release detection based on altitude
     # recovery
-    recover_arm = False  # when recovering craft, set True to arm first. (False)
     wait_recov = True  # wait until recovered (True)
-    wr_vs_max = 1.0  # wait for recover, vertical speed below this value. (1.0)  decending but use positive value
+    wr_vs_max = 1.0  # wait for recover, vertical speed below this value. (1.0)  descending but use positive value
+	wr_timeout_time = 30  # time before timeout during wait_for_recover in seconds (30)
+	wr_retry_time = 10  # time before retry after recover in seconds (10)
     # takeoff
     takeoff_throttle_val = 0.7  # starting throttle value for takeoff. (70%)
     default_takeoff_alt = 20  # distance in meters from starting location to reach in takeoff. (20 m)
@@ -869,11 +895,13 @@ class Rocket:
     def __init__(self):
         pass
 
-    # if craft is falling but not launched or released.  possible loss of connection and missed the state change
-    # add low power mode while waiting (disable GPS, make sure motors are off but craft is armed, telem in low power mode)
-    # 
+    # If craft is falling but not launched or released.  Possible loss of connection and missed the state change
+    # Add low power mode while waiting (disable GPS, make sure motors are off but craft is armed, telemetry in low power mode if possible)
+	# Talk to frame team about adding a switch to the arm that contacts the payload can.
+	# - This will allow the script to act quickly after and have no doubt that the payload has been released.
+	 
     # Monitors altitude and returns once rocket launches
-    # note: if signal loss, it will return once reconnected
+    # Note: if signal loss, it will return once reconnected
     # Mission critical: yes
     # Tested: no
     def wait_for_launch(self):
@@ -890,9 +918,11 @@ class Rocket:
         State.rocket_launced = True
         self.log.log_data("rocket class - launch detected")
 
-    
-    def test_failling(self):
-        temp_cur_alt = self.sen.return_altitude()
+    # Returns true if payload is descending at (pr_alt_test/pr_alt_sleep_test)
+	# Mission critical: maybe
+	# Tested: no
+    def test_falling(self):
+		temp_cur_alt = self.sen.return_altitude()
         if temp_cur_alt > self.con.pr_ms_alt:
             time.sleep(pr_alt_sleep_test)
             if self.sen.return_altitude() < (temp_cur_alt-self.con.pr_alt_trigger):
@@ -901,7 +931,7 @@ class Rocket:
             else: return False
 
     # Returns once payload release is detected
-    # Waits for falling altitude change over time (will return after posible loss of telem)
+    # Waits for falling altitude change over time (will return after possible loss of telemetry)
     # Mission critical: yes
     # Tested: no
     def wait_for_payload_release(self):
@@ -923,6 +953,7 @@ class Rocket:
         # check altitude using barometer.
         # check accelerometer - possibly saturated.
         # GPS will be disabled during this state and enabled once complete
+		if self.sen.disable_gps_on_start: self.cra.params_gps(True);
         self.log.log_data("rocket class - payload release wait complete")
 
     # Recovery craft after rocket release
@@ -931,15 +962,9 @@ class Rocket:
     def recover(self):
         # assumed terminal velocity: 35 to 40 m/s
         # outline: 
-        # - assume level flight
-        # - set a way-point just below current position
+        # - assume level flight from CG
+        # - set a way-point just below current position (to the side? to avoid prop wash)
         self.log.log_data("rocket class - recovery start")
-        #if (self.con.recover_arm):
-        #    self.cra.arm_craft()
-        #self.cra.change_mode_stabilize()  # stabilize
-        #self.cra.rc_set_value(self.cra.rc_throttle, 0.8)  # throttle 80%
-        #time.sleep(1)  # wait
-        #self.cra.change_mode_loiter()  # loiter
         self.cra.set_waypoint([self.sen.return_latitude(), self.sen.return_longitude()], (self.sen.return_altitude()-self.con.recover_wp_below))
         if (self.con.wait_recov):
             self.wait_for_recover()
@@ -948,22 +973,22 @@ class Rocket:
         self.log.log_data("rocket class - recovery complete")
 
     # Returns once stable flight is detected
+	# Waits for vertical speed to drop below wr_vs_max
+	# Timeout after wr_timeout_time and retry after wr_retry_time
     # Mission critical: yes
     # Tested: no
     def wait_for_recover(self):
         self.log.log_data("rocket class - wait for recovery")
         # check IMU (roll and pitch within stable range??)
-        # if level wait a few seconds
-        # if still level then return
-        # note: fault - if stable in upright orientation
-        # DC motors might not start when spinning the wrong way due to wind against the props
-        # monitor vertical speed?  should slow down from way-point set in recover()
-        ## testing only
-        # previously set a way-point in test
+		# OR monitor vertical speed (should slow down after way-point set in recover)
         current_vs = self.sen.return_vertical_speed()
-        while abs(current_vs) > abs(wr_vs_max):
+        starting_time = self.sen.return_time()
+		while abs(current_vs) > abs(wr_vs_max):
             current_vs = self.sen.return_vertical_speed()
-        ## testing end
+			if starting_time+self.sen.return_time() > self.con.wr_retry_time:
+				# timeout
+				time.sleep(wr_retry_time)
+				starting_time = self.sen.return_time()
         self.log.log_data("rocket class - craft recovered")
 
 
@@ -1107,8 +1132,6 @@ class Testing:
         self.cra.rc_set_value(self.cra.rc_throttle, 0.5)
         time.sleep(1)
         self.cra.rc_reset_all()  # cut throttle
-        if (self.con.recover_arm):
-            self.cra.disarm_craft()  # disarm
         time.sleep(self.con.recover_test_sleep)  # wait
         self.log.log_data("test_recovery - starting recovery")
         self.rok.recover()  # recover
@@ -1223,6 +1246,7 @@ class Mission:
     # Tested: no
     def setup(self):
         self.reset_values()
+		if self.con.disable_gps_on_start: self.cra.params_gps(False)
         self.log.log_data("mission class - setup complete")
 
 
