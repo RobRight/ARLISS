@@ -1,0 +1,21 @@
+Mission Setup Instructions:
+
+1. Setup Mission Planner
+  a. metric units
+
+2. Setup Craft Initial
+  a. set near rocket launch site and power on
+  b. connect to Mission Planner
+
+3. Setup Code Initial
+  a. set Config:preset_config = "ma-01-init"
+  b. run code
+
+4. Setup Craft Final
+  a.
+
+5. Setup Code Final
+  a. set Config:preset_config = "ma-01"
+  b. run code
+
+6. Put craft in the can
