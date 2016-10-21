@@ -4,7 +4,9 @@
 #
 # Written by William Gregory
 #
-# Date: 7/1/2016 to present
+# Date: 7/1/2016 to 09/1/2016
+#
+# THIS IS NOT GARANTEED TO WORK IN ANY WAY.  USE AT YOUR OWN RISK.
 #
 # GitHub: https://github.com/robright/arliss
 # MP command info: http://ardupilot.org/planner/docs/using-python-scripts-in-mission-planner.html
