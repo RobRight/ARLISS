@@ -1,5 +1,5 @@
 #
-# UNR ARLISS 2016 Mission Script
+# UNR ARLISS 2016 Mission Code
 # Autonomous navigation and control of quad-rotor using Pixhawk flight controller
 # Date: 7/1/2016 to 09/1/2016
 #
