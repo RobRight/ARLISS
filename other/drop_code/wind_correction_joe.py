@@ -1,3 +1,6 @@
+
+# Joe's code, not mine
+
 print "start script"
 import sys
 import math
