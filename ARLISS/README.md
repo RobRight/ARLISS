@@ -19,9 +19,9 @@ Using Python 2.7 and Mission Planner
 	* Low power
 2. Rocket launch
 3. Rocket payload release
-	* Momentary free fall
+	* Craft chute deploys
 4. Craft recovery
-	* Orientation control - stable flight
+	* Once at a set altitude, chute is cut and motors power on.
 5. Navigation
 	* Controlled decent
 	* Horizontal travel towards target
