@@ -1,5 +1,5 @@
 
-# Joe's code, not mine
+# Created by Joe Sanford
 
 print "start script"
 import sys
